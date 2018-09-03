@@ -32,6 +32,8 @@
 #ifndef _A4988_H_
 #define _A4988_H_
 
+#define DESCRIPTION_SIZE 80
+
 struct a4988 {
 	int pigpio;		/* Expects pigpiod_if2... */
 
@@ -58,6 +60,8 @@ struct a4988 {
 	unsigned ms2;
 
 	unsigned position;
+
+	char description[DESCRIPTION_SIZE];
 };
 
 enum a4988_res {

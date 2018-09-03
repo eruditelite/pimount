@@ -40,8 +40,43 @@
 
 static int pi = -1;
 
-static struct a4988 ra_driver;
-static struct a4988 dec_driver;
+static pthread_t ra_thread;
+static pthread_t dec_thread;
+
+struct motion {
+	struct a4988 driver;
+	enum a4988_res resolution;
+	enum a4988_dir direction;
+	unsigned delay;		/* micro seconds */
+};
+
+struct motion ra;
+struct motion dec;
+
+/*
+  ------------------------------------------------------------------------------
+  stepper
+*/
+
+static void *
+stepper(void *input)
+{
+	struct a4988 *driver;
+	struct timespec delay;
+
+	driver = (struct a4988 *)input;
+	delay.tv_sec = 5;
+	delay.tv_nsec = 0;
+
+	for (;;) {
+		pthread_testcancel();
+		printf("%s:%d - Running Stepper for Driver %s\n",
+		       __FILE__, __LINE__, driver->description);
+		nanosleep(&delay, NULL);
+	}
+
+	pthread_exit(NULL);
+}
 
 /*
   ------------------------------------------------------------------------------
@@ -53,8 +88,8 @@ handler(__attribute__((unused)) int signal)
 {
 	/* Try to shut everything down. */
 
-	a4988_finalize(&ra_driver);
-	a4988_finalize(&dec_driver);
+	a4988_finalize(&(ra.driver));
+	a4988_finalize(&(dec.driver));
 
 	if (-1 != pi)
 		pigpio_stop(pi);
@@ -194,33 +229,53 @@ main(int argc, char *argv[])
 	  Initialize the Stepper Motor Drivers
 	*/
 
-	ra_driver.pigpio = pi;
-	ra_driver.direction = pins[1][0];
-	ra_driver.step = pins[1][1];
-	ra_driver.sleep = pins[1][2];
-	ra_driver.ms2 = pins[1][3];
-	ra_driver.ms1 = pins[1][4];
+	strcpy(ra.driver.description, "RA Driver");
+	ra.driver.pigpio = pi;
+	ra.driver.direction = pins[1][0];
+	ra.driver.step = pins[1][1];
+	ra.driver.sleep = pins[1][2];
+	ra.driver.ms2 = pins[1][3];
+	ra.driver.ms1 = pins[1][4];
 
-	if (0 != a4988_initialize(&ra_driver)) {
+	if (0 != a4988_initialize(&(ra.driver))) {
 		fprintf(stderr, "RA Initialization Failed!\n");
 		pigpio_stop(pi);
 
 		return EXIT_FAILURE;
+	} else {
+		rc = pthread_create(&ra_thread, NULL, stepper,
+				    (void *)&ra);
+
+		if (0 != rc) {
+			fprintf(stderr, "pthread_create() failed: %d\n", rc);
+
+			return EXIT_FAILURE;
+		}
 	}
 
-	dec_driver.pigpio = pi;
-	dec_driver.direction = pins[2][0];
-	dec_driver.step = pins[2][1];
-	dec_driver.sleep = pins[2][2];
-	dec_driver.ms2 = pins[2][3];
-	dec_driver.ms1 = pins[2][4];
+	strcpy(dec.driver.description, "DEC Driver");
+	dec.driver.pigpio = pi;
+	dec.driver.direction = pins[2][0];
+	dec.driver.step = pins[2][1];
+	dec.driver.sleep = pins[2][2];
+	dec.driver.ms2 = pins[2][3];
+	dec.driver.ms1 = pins[2][4];
 
-	if (0 != a4988_initialize(&dec_driver)) {
+	if (0 != a4988_initialize(&(dec.driver))) {
 		fprintf(stderr, "DEC Initialization Failed!\n");
-		a4988_finalize(&dec_driver);
+		a4988_finalize(&(ra.driver));
 		pigpio_stop(pi);
 
 		return EXIT_FAILURE;
+	} else {
+		rc = pthread_create(&dec_thread, NULL, stepper,
+				    (void *)&dec);
+
+		if (0 != rc) {
+			fprintf(stderr, "pthread_create() failed: %d\n", rc);
+
+			return EXIT_FAILURE;
+		}
 	}
 
 	/*
@@ -244,8 +299,10 @@ main(int argc, char *argv[])
 	for (;;)
 		;
 
-	a4988_finalize(&ra_driver);
-	a4988_finalize(&dec_driver);
+
+	pthread_join(dec_thread, NULL);
+	a4988_finalize(&(ra.driver));
+	a4988_finalize(&(dec.driver));
 	pigpio_stop(pi);
 
 	return EXIT_SUCCESS;
