@@ -65,16 +65,42 @@ struct a4988 {
 };
 
 enum a4988_res {
-	A4988_RES_FULL,
+	A4988_RES_FULL = 0,
 	A4988_RES_HALF,
 	A4988_RES_QUARTER,
 	A4988_RES_EIGHTH
+};
+
+static inline const char *
+a4988_res_names(enum a4988_res resolution)
+{
+	switch (resolution) {
+	case A4988_RES_FULL: return "A4988_RES_FULL"; break;
+	case A4988_RES_HALF: return "A4988_RES_HALF"; break;
+	case A4988_RES_QUARTER: return "A4988_RES_QUARTER"; break;
+	case A4988_RES_EIGHTH: return "A4988_RES_EIGHTH"; break;
+	default: break;
+	}
+
+	return "BAD RESOLUTION";
 };
 
 enum a4988_dir {
 	A4988_DIR_CW,
 	A4988_DIR_CCW
 };
+
+static inline const char *
+a4988_dir_names(enum a4988_dir direction)
+{
+	switch (direction) {
+	case A4988_DIR_CW: return "A4988_DIR_CW"; break;
+	case A4988_DIR_CCW: return "A4988_DIR_CCW"; break;
+	default: break;
+	}
+
+	return "BAD DIRECTION";
+}
 
 int a4988_initialize(struct a4988 *);
 void a4988_finalize(struct a4988 *);

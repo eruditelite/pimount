@@ -33,6 +33,7 @@
 #include <getopt.h>
 #include <signal.h>
 #include <limits.h>
+#include <pthread.h>
 #include <pigpiod_if2.h>
 
 #include "pins.h"
@@ -43,15 +44,77 @@ static int pi = -1;
 static pthread_t ra_thread;
 static pthread_t dec_thread;
 
-struct motion {
-	struct a4988 driver;
+struct speed {
+	int state;
 	enum a4988_res resolution;
 	enum a4988_dir direction;
 	unsigned delay;		/* micro seconds */
 };
 
-struct motion ra;
-struct motion dec;
+static struct speed ra_speeds[] = {
+	{1, A4988_RES_FULL, A4988_DIR_CCW, 0},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 0},
+	{1, A4988_RES_QUARTER, A4988_DIR_CCW, 0},
+	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 0},
+	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 13800}, /* Earth Rotation Speed */
+	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 0},
+	{1, A4988_RES_QUARTER, A4988_DIR_CW, 0},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 0},
+	{1, A4988_RES_FULL, A4988_DIR_CW, 0},
+};
+
+#define RA_SPEED_DEFAULT 4
+#define RA_SPEED_MAX 8
+
+static struct speed dec_speeds[] = {
+	{1, A4988_RES_FULL, A4988_DIR_CCW, 0},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 0},
+	{1, A4988_RES_QUARTER, A4988_DIR_CCW, 0},
+	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 0},
+	{0, A4988_RES_EIGHTH, A4988_DIR_CCW, 0}, /* OFF */
+	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 0},
+	{1, A4988_RES_QUARTER, A4988_DIR_CW, 0},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 0},
+	{1, A4988_RES_FULL, A4988_DIR_CW, 0},
+};
+
+#define DEC_SPEED_DEFAULT 4
+#define DEC_SPEED_MAX 8
+
+struct motion {
+	pthread_mutex_t mutex;
+	struct a4988 driver;
+	struct speed *speed;
+	int current_speed;
+	int max_speed;
+};
+
+static struct motion ra;
+static struct motion dec;
+
+static unsigned pb_pins[5];
+
+#define PB_UP (pb_pins[0])
+#define PB_DOWN (pb_pins[1])
+#define PB_LEFT (pb_pins[2])
+#define PB_RIGHT (pb_pins[3])
+#define PB_OFF (pb_pins[4])
+
+/*
+  ------------------------------------------------------------------------------
+  stepper_cleanup
+*/
+
+static void
+stepper_cleanup(void *input)
+{
+	struct motion *motion;
+
+	motion = (struct motion *)input;
+	printf("%s:%d - Finalizing %s\n",
+	       __FILE__, __LINE__, motion->driver.description);
+	a4988_finalize(&(motion->driver));
+}
 
 /*
   ------------------------------------------------------------------------------
@@ -61,20 +124,72 @@ struct motion dec;
 static void *
 stepper(void *input)
 {
+	struct motion *motion;
 	struct a4988 *driver;
-	struct timespec delay;
+	struct speed *speed;
+	int current_speed;
 
-	driver = (struct a4988 *)input;
-	delay.tv_sec = 5;
-	delay.tv_nsec = 0;
+	motion = (struct motion *)input;
+	pthread_mutex_lock(&motion->mutex);
+	driver = &motion->driver;
+	speed = motion->speed;
+	current_speed = motion->current_speed;
+	speed += current_speed;
+	pthread_cleanup_push(stepper_cleanup, input);
+
+	/* First run... */
+	if (1 == speed->state)
+		a4988_enable(driver, speed->resolution, speed->direction);
 
 	for (;;) {
+		struct timespec start;
+		struct timespec now;
+		struct timespec sleep;
+
+		clock_gettime(CLOCK_MONOTONIC, &start);
+
+		/*
+		  See if Anything Changed, Update if Needed
+		*/
+		  
+		if (current_speed != motion->current_speed) {
+			printf("%s:%d - %s Update %d %d\n",
+			       __FILE__, __LINE__, driver->description,
+			       current_speed, motion->current_speed);
+			speed = motion->speed;
+			current_speed = motion->current_speed;
+			speed += current_speed;
+			a4988_disable(driver);
+
+			if (1 == speed->state)
+				a4988_enable(driver, speed->resolution,
+					     speed->direction);
+		}
+
 		pthread_testcancel();
-		printf("%s:%d - Running Stepper for Driver %s\n",
-		       __FILE__, __LINE__, driver->description);
-		nanosleep(&delay, NULL);
+
+		if (1 == speed->state) {
+			a4988_step(driver);
+
+			/* calculate sleep time... */
+			clock_gettime(CLOCK_MONOTONIC, &now);
+
+			if (now.tv_sec > start.tv_sec)
+				now.tv_nsec += 1000000000;
+
+			sleep.tv_sec = 0;
+			sleep.tv_nsec = now.tv_nsec - start.tv_nsec - 2000000;
+		} else {
+			sleep.tv_sec = 1;
+			sleep.tv_nsec = 0;
+		}
+
+		pthread_mutex_unlock(&motion->mutex);
+		nanosleep(&sleep, NULL);
+		pthread_mutex_lock(&motion->mutex);
 	}
 
+	pthread_cleanup_pop(1);
 	pthread_exit(NULL);
 }
 
@@ -86,10 +201,10 @@ stepper(void *input)
 static void
 handler(__attribute__((unused)) int signal)
 {
-	/* Try to shut everything down. */
-
-	a4988_finalize(&(ra.driver));
-	a4988_finalize(&(dec.driver));
+	pthread_cancel(ra_thread);
+	pthread_join(ra_thread, NULL);
+	pthread_cancel(dec_thread);
+	pthread_join(dec_thread, NULL);
 
 	if (-1 != pi)
 		pigpio_stop(pi);
@@ -103,11 +218,52 @@ handler(__attribute__((unused)) int signal)
 */
 
 static void
-pb_callback(int pi, unsigned int pin, unsigned int level, unsigned int tick)
+pb_callback(__attribute__((unused)) int pi,
+	    unsigned int pin,
+	    __attribute__((unused)) unsigned int level,
+	    __attribute__((unused)) unsigned int tick)
 {
-	printf("%s:%d - pi=%d pin=%u level=%u tick=%u\n",
-	       __FILE__, __LINE__,
-	       pi, pin, level, tick);
+	if (PB_OFF == pin) {
+		/*
+		  Set to follow the Earth's rotation.
+		*/
+
+		/* DEC off */
+		pthread_mutex_lock(&dec.mutex);
+		dec.current_speed = DEC_SPEED_DEFAULT;
+		pthread_mutex_unlock(&dec.mutex);
+
+		/* RA at Earth speed */
+		pthread_mutex_lock(&ra.mutex);
+		ra.current_speed = RA_SPEED_DEFAULT;
+		pthread_mutex_unlock(&ra.mutex);
+	} else if (PB_UP == pin || PB_DOWN == pin) {
+		/*
+		  Increase or Decrease the DEC Motion
+		*/
+
+		pthread_mutex_lock(&dec.mutex);
+
+		if (PB_UP == pin && dec.current_speed < dec.max_speed)
+			++ dec.current_speed;
+		else if (PB_DOWN == pin && dec.current_speed > 0)
+			-- dec.current_speed;
+
+		pthread_mutex_unlock(&dec.mutex);
+	} else if (pin == pb_pins[2] || pin == pb_pins[3]) {
+		/*
+		  Increase or Decrease the DEC Motion
+		*/
+
+		pthread_mutex_lock(&ra.mutex);
+
+		if (PB_LEFT == pin && ra.current_speed > 0)
+			-- ra.current_speed;
+		else if (PB_RIGHT == pin && ra.current_speed < ra.max_speed)
+			++ ra.current_speed;
+
+		pthread_mutex_unlock(&ra.mutex);
+	}
 
 	return;
 }
@@ -236,6 +392,11 @@ main(int argc, char *argv[])
 	ra.driver.sleep = pins[1][2];
 	ra.driver.ms2 = pins[1][3];
 	ra.driver.ms1 = pins[1][4];
+	ra.speed = &ra_speeds[0];
+	ra.current_speed = RA_SPEED_DEFAULT;
+	ra.max_speed = RA_SPEED_MAX;
+	pthread_mutex_init(&ra.mutex, NULL);
+	pthread_mutex_lock(&ra.mutex);
 
 	if (0 != a4988_initialize(&(ra.driver))) {
 		fprintf(stderr, "RA Initialization Failed!\n");
@@ -253,6 +414,8 @@ main(int argc, char *argv[])
 		}
 	}
 
+	pthread_mutex_unlock(&ra.mutex);
+
 	strcpy(dec.driver.description, "DEC Driver");
 	dec.driver.pigpio = pi;
 	dec.driver.direction = pins[2][0];
@@ -260,6 +423,11 @@ main(int argc, char *argv[])
 	dec.driver.sleep = pins[2][2];
 	dec.driver.ms2 = pins[2][3];
 	dec.driver.ms1 = pins[2][4];
+	dec.speed = &dec_speeds[0];
+	dec.current_speed = DEC_SPEED_DEFAULT;
+	dec.max_speed = DEC_SPEED_MAX;
+	pthread_mutex_init(&dec.mutex, NULL);
+	pthread_mutex_lock(&dec.mutex);
 
 	if (0 != a4988_initialize(&(dec.driver))) {
 		fprintf(stderr, "DEC Initialization Failed!\n");
@@ -278,6 +446,8 @@ main(int argc, char *argv[])
 		}
 	}
 
+	pthread_mutex_unlock(&dec.mutex);
+
 	/*
 	  Set up the Push Buttons...
 	*/
@@ -294,12 +464,11 @@ main(int argc, char *argv[])
 
 			return EXIT_FAILURE;
 		}
+
+		pb_pins[i] = pins[0][i];
 	}
 
-	for (;;)
-		;
-
-
+	pthread_join(ra_thread, NULL);
 	pthread_join(dec_thread, NULL);
 	a4988_finalize(&(ra.driver));
 	a4988_finalize(&(dec.driver));
