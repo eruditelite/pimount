@@ -9,6 +9,8 @@
 
 #include "pins.h"
 
+/*#define TRACE*/
+
 /*
   ------------------------------------------------------------------------------
   pins_set_mode
@@ -18,6 +20,11 @@ int
 pins_set_mode(int pigpio, unsigned pin, unsigned mode)
 {
 	int rc;
+
+#ifdef TRACE
+	printf("%s:%s:%d - pin=%u mode=%u\n",
+	       __FILE__, __func__, __LINE__, pin, mode);
+#endif
 
 	rc = set_mode(pigpio, pin, mode);
 
@@ -38,6 +45,11 @@ pins_set_pull_up_down(int pigpio, unsigned pin, unsigned pud)
 {
 	int rc;
 
+#ifdef TRACE
+	printf("%s:%s:%d - pin=%u pud=%u\n",
+	       __FILE__, __func__, __LINE__, pin, pud);
+#endif
+
 	rc = set_pull_up_down(pigpio, pin, pud);
 
 	if (0 != rc)
@@ -57,6 +69,11 @@ pins_set_glitch_filter(int pigpio, unsigned pin, unsigned steady)
 {
 	int rc;
 
+#ifdef TRACE
+	printf("%s:%s:%d - pin=%u steady=%u\n",
+	       __FILE__, __func__, __LINE__, pin, steady);
+#endif
+
 	rc = set_glitch_filter(pigpio, pin, steady);
 
 	if (0 != rc)
@@ -75,6 +92,11 @@ int
 pins_gpio_write(int pigpio, unsigned pin, unsigned level)
 {
 	int rc;
+
+#ifdef TRACE
+	printf("%s:%s:%d - pin=%u level=%u\n",
+	       __FILE__, __func__, __LINE__, pin, level);
+#endif
 
 	rc = gpio_write(pigpio, pin, level);
 
