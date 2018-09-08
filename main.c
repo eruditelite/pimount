@@ -6,24 +6,6 @@
   buttons : 11:27:9:10:22
   ra : 2:3:4:14:15
   dec : 5:6:13:19:26
-
-  == Some results for RA (pins are 2:3:4:14:15)
-
-  One HA Fast
-
-  [ pi@raspberrypi ] time ./simple -s 31250 -p 0 -d cw -r f 2:3:4:14:15
-  real	1m17.035s
-  user	0m0.302s
-  sys	0m3.898s
-
-  One HA in an Hour
-
-  [ pi@raspberrypi ] time ./simple -s 250000 -p 13800 -d ccw -r e 2:3:4:14:15
-  real	59m46.303s
-  user	0m2.084s
-  sys	0m40.113s
-
-  == Some results for Dec (pins are 5:6:13:19:26)
 */
 
 #include <unistd.h>
@@ -56,7 +38,7 @@ static struct speed ra_speeds[] = {
 	{1, A4988_RES_HALF, A4988_DIR_CCW, 0},
 	{1, A4988_RES_QUARTER, A4988_DIR_CCW, 0},
 	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 0},
-	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 13800}, /* Earth Rotation Speed */
+	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 30000}, /* Earth Rotation Speed */
 	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 0},
 	{1, A4988_RES_QUARTER, A4988_DIR_CW, 0},
 	{1, A4988_RES_HALF, A4988_DIR_CW, 0},
@@ -178,7 +160,9 @@ stepper(void *input)
 				now.tv_nsec += 1000000000;
 
 			sleep.tv_sec = 0;
-			sleep.tv_nsec = now.tv_nsec - start.tv_nsec - 2000000;
+			sleep.tv_nsec = (speed->delay * 1000)
+				- (now.tv_nsec - start.tv_nsec)
+				- 2000000;
 		} else {
 			sleep.tv_sec = 1;
 			sleep.tv_nsec = 0;
@@ -209,7 +193,7 @@ handler(__attribute__((unused)) int signal)
 	if (-1 != pi)
 		pigpio_stop(pi);
 
-	exit(EXIT_FAILURE);
+	pthread_exit(NULL);
 }
 
 /*
@@ -455,7 +439,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < (sizeof(pins[0]) / sizeof(int)); ++i) {
 		rc = pins_set_mode(pi, pins[0][i], PI_INPUT);
 		rc |= pins_set_pull_up_down(pi, pins[0][i], PI_PUD_UP);
-		rc |= pins_set_glitch_filter(pi, pins[0][i], 1500);
+		rc |= pins_set_glitch_filter(pi, pins[0][i], 500);
 		callback_id = pins_callback(pi, pins[0][i], FALLING_EDGE,
 					    pb_callback);
 
@@ -474,5 +458,5 @@ main(int argc, char *argv[])
 	a4988_finalize(&(dec.driver));
 	pigpio_stop(pi);
 
-	return EXIT_SUCCESS;
+	pthread_exit(NULL);
 }
