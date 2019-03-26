@@ -1,4 +1,4 @@
-update=Mon 25 Mar 2019 11:23:52 PM CDT
+update=Tue 26 Mar 2019 01:33:42 PM CDT
 version=1
 last_client=kicad
 [cvpcb]
@@ -16,6 +16,16 @@ version=1
 [eeschema]
 version=1
 LibDir=
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=
+SpiceAjustPassiveValues=0
+LabSize=50
+ERC_TestSimilarLabels=1
 [pcbnew]
 version=1
 PageLayoutDescrFile=
@@ -64,6 +74,17 @@ SolderPasteClearance=0
 SolderPasteRatio=-0
 [pcbnew/Netclasses]
 [pcbnew/Netclasses/1]
+Name=Motor Power
+Clearance=0.2
+TrackWidth=0.2
+ViaDiameter=0.9
+ViaDrill=0.6
+uViaDiameter=0.5
+uViaDrill=0.1
+dPairWidth=0.2
+dPairGap=0.25
+dPairViaGap=0.25
+[pcbnew/Netclasses/2]
 Name=Power
 Clearance=0.2
 TrackWidth=0.5
@@ -74,13 +95,3 @@ uViaDrill=0.1
 dPairWidth=0.2
 dPairGap=0.25
 dPairViaGap=0.25
-[schematic_editor]
-version=1
-PageLayoutDescrFile=
-PlotDirectoryName=
-SubpartIdSeparator=0
-SubpartFirstId=65
-NetFmtName=
-SpiceAjustPassiveValues=0
-LabSize=50
-ERC_TestSimilarLabels=1
