@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name Main-Board-rescue)(type Legacy)(uri "${KIPRJMOD}/Main Board-rescue.lib")(options "")(descr ""))
+  (lib (name pimount)(type Legacy)(uri /home/john/Projects/Pi/pimount/hardware/KiCAD/pimount.lib)(options "")(descr ""))
+)
