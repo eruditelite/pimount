@@ -5,12 +5,12 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 2
-Title ""
-Date ""
-Rev ""
+Title "pimount"
+Date "2019-03-27"
+Rev "1.0"
 Comp ""
-Comment1 ""
-Comment2 ""
+Comment1 "https://github.com/eruditelite/pimount.git"
+Comment2 "release_1.0"
 Comment3 ""
 Comment4 ""
 $EndDescr
