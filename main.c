@@ -3,9 +3,9 @@
 
   == Defaults...
 
-  buttons : 11:27:9:10:22
-  ra : 2:3:4:14:15
-  dec : 5:6:13:19:26
+  buttons : 0:22:11:9:10
+  ra : 26:19:13:6:5
+  dec : 27:17:4:3:2
 */
 
 #include <unistd.h>
@@ -381,6 +381,10 @@ main(int argc, char *argv[])
 	ra.max_speed = RA_SPEED_MAX;
 	pthread_mutex_init(&ra.mutex, NULL);
 	pthread_mutex_lock(&ra.mutex);
+
+	printf("RA Pins: d/st/sl/2/1 = %d/%d/%d/%d/%d\n",
+	       ra.driver.direction, ra.driver.step, ra.driver.sleep,
+	       ra.driver.ms2, ra.driver.ms1);
 
 	if (0 != a4988_initialize(&(ra.driver))) {
 		fprintf(stderr, "RA Initialization Failed!\n");
