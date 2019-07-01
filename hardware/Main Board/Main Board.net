@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source "/home/john/Projects/Pi/pimount/hardware/Main Board/Main Board.sch")
-    (date "Mon 10 Jun 2019 08:27:10 PM CDT")
+    (date "Sun 30 Jun 2019 07:29:41 PM CDT")
     (tool "Eeschema 5.0.2-bee76a0~70~ubuntu18.04.1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
