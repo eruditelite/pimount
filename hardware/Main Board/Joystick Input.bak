@@ -1,16 +1,16 @@
 EESchema Schematic File Version 4
 LIBS:Main Board-cache
-EELAYER 29 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 2
-Title ""
-Date ""
-Rev ""
+Title "pimount"
+Date "2019-03-27"
+Rev "1.0"
 Comp ""
-Comment1 ""
-Comment2 ""
+Comment1 "https://github.com/eruditelite/pimount.git"
+Comment2 "release_1.0"
 Comment3 ""
 Comment4 ""
 $EndDescr
@@ -155,8 +155,8 @@ L power:GND #PWR?
 U 1 1 5CA25D37
 P 7000 3300
 AR Path="/5CA25D37" Ref="#PWR?"  Part="1" 
-AR Path="/5C9A8F22/5CA25D37" Ref="#PWR02"  Part="1" 
-F 0 "#PWR02" H 7000 3050 50  0001 C CNN
+AR Path="/5C9A8F22/5CA25D37" Ref="#PWR015"  Part="1" 
+F 0 "#PWR015" H 7000 3050 50  0001 C CNN
 F 1 "GND" H 7005 3127 50  0000 C CNN
 F 2 "" H 7000 3300 50  0001 C CNN
 F 3 "" H 7000 3300 50  0001 C CNN
@@ -289,8 +289,8 @@ L power:GND #PWR?
 U 1 1 5CA45999
 P 4700 3300
 AR Path="/5CA45999" Ref="#PWR?"  Part="1" 
-AR Path="/5C9A8F22/5CA45999" Ref="#PWR01"  Part="1" 
-F 0 "#PWR01" H 4700 3050 50  0001 C CNN
+AR Path="/5C9A8F22/5CA45999" Ref="#PWR014"  Part="1" 
+F 0 "#PWR014" H 4700 3050 50  0001 C CNN
 F 1 "GND" H 4705 3127 50  0000 C CNN
 F 2 "" H 4700 3300 50  0001 C CNN
 F 3 "" H 4700 3300 50  0001 C CNN
