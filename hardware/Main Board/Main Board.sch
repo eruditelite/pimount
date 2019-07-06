@@ -674,4 +674,8 @@ Wire Wire Line
 	5450 3900 5450 3700
 Wire Wire Line
 	5450 3700 7000 3700
+Text Notes 1200 2350 0    50   ~ 0
+RJ9\nPin 1 goes to 1A\nPin 2 goes to 2B\nPin 3 goes to 2A\nPin 4 goes to 1B
+Text Notes 1200 3600 0    50   ~ 0
+RJ10\nPin 1 goes to 1A\nPin 2 goes to 2B\nPin 3 goes to 2A\nPin 4 goes to 1B
 $EndSCHEMATC
