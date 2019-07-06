@@ -339,12 +339,6 @@ main(int argc, char *argv[])
 				fprintf(stderr, "Invalid GPIO Pin\n");
 				return EXIT_FAILURE;
 			}
-
-			if ((0 == pins[i][j]) || (1 == pins[i][j])) {
-				fprintf(stderr,
-					"pigpiod_if2 doesn't allow 0 or 1!\n");
-				return EXIT_FAILURE;
-			}
 		}
 	}
 
