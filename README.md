@@ -43,6 +43,17 @@ complete.  The components are as follow.
 Set the voltage (potentiometer to ground) to 125 mV.  Motor voltage
 should be 10 V.
 
+## Web User Interface ##
+
+### Why ###
+
+Allows basic control from any device with a web server.
+
+### How ###
+
+See https://github.com/Mjrovai/RPi-Flask-WebServer for an example
+setup. That's the skeleton.
+
 ## Post Mortems ##
 
 ### release_1.1 ###
