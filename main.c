@@ -437,7 +437,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < (sizeof(pins[0]) / sizeof(int)); ++i) {
 		rc = pins_set_mode(pi, pins[0][i], PI_INPUT);
 		rc |= pins_set_pull_up_down(pi, pins[0][i], PI_PUD_UP);
-		rc |= pins_set_glitch_filter(pi, pins[0][i], 500);
+		rc |= pins_set_glitch_filter(pi, pins[0][i], 50);
 		callback_id = pins_callback(pi, pins[0][i], FALLING_EDGE,
 					    pb_callback);
 
