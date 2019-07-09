@@ -143,7 +143,7 @@ GPIO3(SCL1)
 Text Label 5850 2000 0    50   ~ 0
 GPIO2(SDA1)
 Wire Wire Line
-	7500 3400 8550 3400
+	7500 3400 7650 3400
 Wire Wire Line
 	7500 2400 8550 2400
 Wire Wire Line
@@ -352,10 +352,8 @@ NoConn ~ 7500 2400
 NoConn ~ 7500 3400
 NoConn ~ 5250 1900
 NoConn ~ 5250 2200
-NoConn ~ 5250 2300
 NoConn ~ 5250 3200
 NoConn ~ 5250 3500
-NoConn ~ 5250 3600
 $Sheet
 S 4750 5700 850  800 
 U 5C9A8F22
@@ -459,12 +457,6 @@ Wire Wire Line
 	6050 4850 6050 6300
 Wire Wire Line
 	6050 6300 5600 6300
-Wire Wire Line
-	5650 3200 5650 4750
-Wire Wire Line
-	5650 4750 6150 4750
-Wire Wire Line
-	5650 3200 7000 3200
 Wire Wire Line
 	5600 6400 6150 6400
 Wire Wire Line
@@ -574,17 +566,6 @@ Wire Wire Line
 	8500 5000 8500 5200
 Wire Wire Line
 	8500 5200 8750 5200
-$Comp
-L power:+6V #PWR012
-U 1 1 5D09F8F7
-P 8900 3800
-F 0 "#PWR012" H 8900 3650 50  0001 C CNN
-F 1 "+6V" H 8915 3973 50  0000 C CNN
-F 2 "" H 8900 3800 50  0001 C CNN
-F 3 "" H 8900 3800 50  0001 C CNN
-	1    8900 3800
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	8900 3800 8900 4000
 Wire Wire Line
@@ -609,17 +590,6 @@ $EndComp
 Wire Wire Line
 	3000 5000 3000 5200
 Connection ~ 3000 5000
-$Comp
-L power:+6V #PWR01
-U 1 1 5D0BF801
-P 3000 4500
-F 0 "#PWR01" H 3000 4350 50  0001 C CNN
-F 1 "+6V" H 3015 4673 50  0000 C CNN
-F 2 "" H 3000 4500 50  0001 C CNN
-F 3 "" H 3000 4500 50  0001 C CNN
-	1    3000 4500
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	3000 4500 3000 4700
 Connection ~ 3000 4700
@@ -647,7 +617,7 @@ Wire Wire Line
 Wire Wire Line
 	5400 2400 5250 2400
 Wire Wire Line
-	5400 2200 5400 2400
+	5400 2200 5400 2300
 Wire Wire Line
 	5250 2100 7000 2100
 Wire Wire Line
@@ -659,7 +629,7 @@ Wire Wire Line
 Wire Wire Line
 	5250 3700 5350 3700
 Wire Wire Line
-	5350 3700 5350 3500
+	5350 3700 5350 3600
 Wire Wire Line
 	5350 3500 7000 3500
 Wire Wire Line
@@ -678,4 +648,45 @@ Text Notes 1200 2350 0    50   ~ 0
 RJ9\nPin 1 goes to 1A\nPin 2 goes to 2B\nPin 3 goes to 2A\nPin 4 goes to 1B
 Text Notes 1200 3600 0    50   ~ 0
 RJ10\nPin 1 goes to 1A\nPin 2 goes to 2B\nPin 3 goes to 2A\nPin 4 goes to 1B
+Wire Wire Line
+	5250 3600 5350 3600
+Connection ~ 5350 3600
+Wire Wire Line
+	5350 3600 5350 3500
+Wire Wire Line
+	5250 2300 5400 2300
+Connection ~ 5400 2300
+Wire Wire Line
+	5400 2300 5400 2400
+Wire Wire Line
+	5850 3200 7000 3200
+Wire Wire Line
+	7650 3400 7650 4750
+Wire Wire Line
+	7650 4750 6150 4750
+Connection ~ 7650 3400
+Wire Wire Line
+	7650 3400 8550 3400
+$Comp
+L power:+10V #PWR?
+U 1 1 5D25EF9D
+P 8900 3800
+F 0 "#PWR?" H 8900 3650 50  0001 C CNN
+F 1 "+10V" H 8915 3973 50  0000 C CNN
+F 2 "" H 8900 3800 50  0001 C CNN
+F 3 "" H 8900 3800 50  0001 C CNN
+	1    8900 3800
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+10V #PWR?
+U 1 1 5D25F09C
+P 3000 4500
+F 0 "#PWR?" H 3000 4350 50  0001 C CNN
+F 1 "+10V" H 3015 4673 50  0000 C CNN
+F 2 "" H 3000 4500 50  0001 C CNN
+F 3 "" H 3000 4500 50  0001 C CNN
+	1    3000 4500
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
