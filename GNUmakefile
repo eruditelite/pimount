@@ -8,7 +8,7 @@ endif
 
 all: pimount
 
-pimount: main.c a4988.o pins.o
+pimount: main.c a4988.o pins.o fan.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 a4988.o: a4988.c a4988.h
@@ -17,5 +17,8 @@ a4988.o: a4988.c a4988.h
 pins.o: pins.c pins.h
 	gcc $(CFLAGS) -c -o $@ $<
 
+fan.o: fan.c
+	gcc $(CFLAGS) -c -o $@ $<
+
 clean:
-	rm -f *~ pins.o a4988.o pimount
+	rm -f *~ fan.o pins.o a4988.o pimount

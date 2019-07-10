@@ -25,6 +25,7 @@ static int pi = -1;
 
 static pthread_t ra_thread;
 static pthread_t dec_thread;
+static pthread_t fan_thread;
 
 struct speed {
 	int state;
@@ -185,6 +186,8 @@ stepper(void *input)
 static void
 handler(__attribute__((unused)) int signal)
 {
+	pthread_cancel(fan_thread);
+	pthread_join(fan_thread, NULL);
 	pthread_cancel(ra_thread);
 	pthread_join(ra_thread, NULL);
 	pthread_cancel(dec_thread);
@@ -360,6 +363,17 @@ main(int argc, char *argv[])
 	signal(SIGTERM, handler);
 
 	/*
+	  Start the Fan Thread
+	*/
+
+	rc = pthread_create(&fan_thread, NULL, fan, NULL);
+
+	if (0 != rc) {
+		fprintf(stderr, "pthread_create() failed: %d\n", rc);
+
+		return EXIT_FAILURE;
+	}
+	/*
 	  Initialize the Stepper Motor Drivers
 	*/
 
@@ -450,6 +464,7 @@ main(int argc, char *argv[])
 		pb_pins[i] = pins[0][i];
 	}
 
+	pthread_join(fan_thread, NULL);
 	pthread_join(ra_thread, NULL);
 	pthread_join(dec_thread, NULL);
 	a4988_finalize(&(ra.driver));
