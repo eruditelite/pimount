@@ -298,18 +298,23 @@ main(int argc, char *argv[])
 	unsigned j;
 	int pins[3][5];
 	int callback_id;
+	int glitch = 1000;	/* Default is 1000... */
 
 	static struct option long_options[] = {
 		{"help",       required_argument, 0,  'h' },
+		{"glitch",     required_argument, 0,  'g' },
 		{0,            0,                 0,  0   }
 	};
 
 	strcpy(ip_address, "localhost");
 	strcpy(ip_port, "8888");
 
-	while ((opt = getopt_long(argc, argv, "h", 
+	while ((opt = getopt_long(argc, argv, "g:h", 
 				  long_options, &long_index )) != -1) {
 		switch (opt) {
+		case 'g':
+			glitch = strtol(optarg, NULL, 0);
+			break;
 		case 'h':
 			usage(EXIT_SUCCESS);
 			break;
@@ -451,7 +456,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < (sizeof(pins[0]) / sizeof(int)); ++i) {
 		rc = pins_set_mode(pi, pins[0][i], PI_INPUT);
 		rc |= pins_set_pull_up_down(pi, pins[0][i], PI_PUD_UP);
-		rc |= pins_set_glitch_filter(pi, pins[0][i], 50);
+		rc |= pins_set_glitch_filter(pi, pins[0][i], glitch);
 		callback_id = pins_callback(pi, pins[0][i], FALLING_EDGE,
 					    pb_callback);
 
