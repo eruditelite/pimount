@@ -4,7 +4,7 @@
 
 Telescope mount driver.
 
-## Starting Points and Connectors ##
+## Starting Points and Connections ##
 
 This all started with a SkyView Pro mount and Orion 7832 Dual Axis
 TrueTrack Telescope Drive.  This setup works, but there are a number
@@ -38,7 +38,10 @@ complete.  The components are as follow.
     available, but KiCAD footprints must be created.  Here's how the
     wiring works.
 
-## Stepper Motor Wiring ##
+### Stepper Motor Wiring and Current Limit ###
+
+Set the voltage (potentiometer to ground) to 125 mV.  Motor voltage
+should be 10 V.
 
 ## Post Mortems ##
 
