@@ -6,7 +6,7 @@ CFLAGS = -Wall -Wextra -O2
 LIBS = -lpigpiod_if2 -lrt -lpthread
 endif
 
-all: fan
+all: fan control
 
 fan: fan.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
@@ -14,5 +14,11 @@ fan: fan.o
 fan.o: fan.c
 	gcc $(CFLAGS) -c -o $@ $<
 
+control: control.o
+	gcc $(CFLAGS) -o $@ $^
+
+control.o: control.c
+	gcc $(CFLAGS) -c -o $@ $<
+
 clean:
-	rm -f *~ fan.o fan
+	rm -f *~ *.o fan control

@@ -18,7 +18,9 @@
 #include <limits.h>
 #include <pthread.h>
 #include <pigpiod_if2.h>
+#include <arpa/inet.h>
 
+#include "control.h"
 #include "fan.h"
 #include "pins.h"
 #include "a4988.h"
@@ -28,6 +30,7 @@ static int pi = -1;
 static pthread_t ra_thread;
 static pthread_t dec_thread;
 static pthread_t fan_thread;
+static pthread_t control_thread;
 
 struct speed {
 	int state;
@@ -188,6 +191,8 @@ stepper(void *input)
 static void
 handler(__attribute__((unused)) int signal)
 {
+	pthread_cancel(control_thread);
+	pthread_join(control_thread, NULL);
 	pthread_cancel(fan_thread);
 	pthread_join(fan_thread, NULL);
 	pthread_cancel(ra_thread);
@@ -303,6 +308,7 @@ main(int argc, char *argv[])
 	int callback_id;
 	int glitch = 1000;	/* Default is 1000... */
 	struct fan_params fan_input;
+	struct control_input control_parameters;
 
 	static struct option long_options[] = {
 		{"help",       required_argument, 0,  'h' },
@@ -387,6 +393,7 @@ main(int argc, char *argv[])
 
 		return EXIT_FAILURE;
 	}
+
 	/*
 	  Initialize the Stepper Motor Drivers
 	*/
@@ -478,6 +485,22 @@ main(int argc, char *argv[])
 		pb_pins[i] = pins[0][i];
 	}
 
+	/*
+	  Start the Control Thread
+	*/
+
+	control_parameters.port = 8888;
+
+	rc = pthread_create(&control_thread, NULL,
+			    control, (void *)&control_parameters);
+
+	if (0 != rc) {
+		fprintf(stderr, "pthread_create() failed: %d\n", rc);
+
+		return EXIT_FAILURE;
+	}
+
+	pthread_join(control_thread, NULL);
 	pthread_join(fan_thread, NULL);
 	pthread_join(ra_thread, NULL);
 	pthread_join(dec_thread, NULL);
