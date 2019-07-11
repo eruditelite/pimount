@@ -6,11 +6,11 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 2
 Title "pimount"
-Date "2019-03-27"
-Rev "1.0"
+Date "2019-07-10"
+Rev "1.2"
 Comp ""
 Comment1 "https://github.com/eruditelite/pimount.git"
-Comment2 "release_1.0"
+Comment2 "release_1.2"
 Comment3 ""
 Comment4 ""
 $EndDescr

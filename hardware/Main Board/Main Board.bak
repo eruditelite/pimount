@@ -715,7 +715,7 @@ U 1 1 5D260018
 P 10050 1300
 F 0 "D1" V 10004 1379 50  0000 L CNN
 F 1 "1N4148" V 10095 1379 50  0000 L CNN
-F 2 "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal" H 10050 1125 50  0001 C CNN
+F 2 "Diode_THT:D_DO-35_SOD27_P2.54mm_Vertical_KathodeUp" H 10050 1125 50  0001 C CNN
 F 3 "http://www.nxp.com/documents/data_sheet/1N4148_1N4448.pdf" H 10050 1300 50  0001 C CNN
 	1    10050 1300
 	0    1    1    0   
