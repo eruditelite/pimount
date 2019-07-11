@@ -6,6 +6,7 @@
   buttons : 0:22:11:9:10
   ra : 26:19:13:6:5
   dec : 27:17:4:3:2
+  fan : 18
 */
 
 #include <unistd.h>
