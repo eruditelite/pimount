@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <pigpiod_if2.h>
 
+#include "fan.h"
 #include "pins.h"
 #include "a4988.h"
 
@@ -263,7 +264,7 @@ pb_callback(__attribute__((unused)) int pi,
 static void
 usage(int exit_code)
 {
-	printf("pimount <button pins> <ra pins> <da pins>\n" \
+	printf("pimount <button pins> <ra pins> <da pins> <fan pin>\n" \
 	       "<button pins> : A ':' separated list of gpio pins (5)\n" \
 	       "         pin connected to +dec\n" \
 	       "         pin connected to -dec\n" \
@@ -297,8 +298,10 @@ main(int argc, char *argv[])
 	unsigned i;
 	unsigned j;
 	int pins[3][5];
+	int fan_pin;
 	int callback_id;
 	int glitch = 1000;	/* Default is 1000... */
+	struct fan_params fan_input;
 
 	static struct option long_options[] = {
 		{"help",       required_argument, 0,  'h' },
@@ -325,7 +328,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (3 != (argc - optind)) {
+	if (4 != (argc - optind)) {
 		fprintf(stderr, "GPIO Pins Must Be Specified\n");
 		usage(EXIT_FAILURE);
 	}
@@ -371,7 +374,12 @@ main(int argc, char *argv[])
 	  Start the Fan Thread
 	*/
 
-	rc = pthread_create(&fan_thread, NULL, fan, NULL);
+	fan_pin = atoi(argv[optind++]);
+
+	fan_input.pin = fan_pin;
+	fan_input.pi = pi;
+
+	rc = pthread_create(&fan_thread, NULL, fan, (void *)&fan_input);
 
 	if (0 != rc) {
 		fprintf(stderr, "pthread_create() failed: %d\n", rc);

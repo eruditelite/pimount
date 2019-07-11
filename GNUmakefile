@@ -17,7 +17,7 @@ a4988.o: a4988.c a4988.h
 pins.o: pins.c pins.h
 	gcc $(CFLAGS) -c -o $@ $<
 
-fan.o: fan.c
+fan.o: fan.c fan.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
