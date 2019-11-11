@@ -24,4 +24,4 @@ control.o: control.c control.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *~ fan.o pins.o a4988.o pimount
+	rm -f *~ *.o pimount
