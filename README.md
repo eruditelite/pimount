@@ -45,6 +45,15 @@ should be 10 V.
 
 ## Post Mortems ##
 
+### release_1.3 ###
+
+### release_1.2 ###
+
+  * Circuit clean up -- the ELEGOO stepper motor pin size was too small etc.
+  * Build updates.
+  * Add fan control.
+  * Update the board and silk screen.
+
 ### release_1.1 ###
 
   * I hate JST connectors!!!!!  I was finally able to make a few work,
