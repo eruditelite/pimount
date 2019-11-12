@@ -1,18 +1,12 @@
 ifdef DEBUG_BUILD
 CFLAGS = -Wall -Wextra -g
-LIBS = -lpigpiod_if2 -lrt -lpthread
 else
 CFLAGS = -Wall -Wextra -O2
-LIBS = -lpigpiod_if2 -lrt -lpthread
 endif
 
-all: fan control
+LIBS = -lpigpio -lrt
 
-fan: fan.o
-	gcc $(CFLAGS) -o $@ $^ $(LIBS)
-
-fan.o: fan.c
-	gcc $(CFLAGS) -c -o $@ $<
+all: control input fan
 
 control: control.o
 	gcc $(CFLAGS) -o $@ $^
@@ -20,5 +14,17 @@ control: control.o
 control.o: control.c
 	gcc $(CFLAGS) -c -o $@ $<
 
+fan: fan.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+fan.o: fan.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+input: input.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+input.o: input.c
+	gcc $(CFLAGS) -c -o $@ $<
+
 clean:
-	rm -f *~ *.o fan control
+	rm -f *~ *.o fan control input
