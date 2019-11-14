@@ -22,10 +22,6 @@
   ignored.
 
   -3-
-  The pigpiod_if2 C interface is assumed.  That being the case, the
-  'pigpio' field in the driver structure must be valid.
-
-  -4-
   The finalize function returns void. What would you do if it failed?
 */
 
@@ -35,8 +31,6 @@
 #define DESCRIPTION_SIZE 80
 
 struct a4988 {
-	int pigpio;		/* Expects pigpiod_if2... */
-
 	/* 0 means sleep -- allow 1 ms before stepping after setting to 1. */
 	unsigned sleep;
 

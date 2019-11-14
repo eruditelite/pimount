@@ -1,10 +1,10 @@
 ifdef DEBUG_BUILD
 CFLAGS = -Wall -Wextra -g
-LIBS = -lpigpiod_if2 -lrt -lpthread
 else
 CFLAGS = -Wall -Wextra -O2
-LIBS = -lpigpiod_if2 -lrt -lpthread
 endif
+
+LIBS = -lpigpio -lrt -lpthread
 
 all: pimount
 

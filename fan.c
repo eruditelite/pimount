@@ -1,5 +1,7 @@
 /*
   fan.c
+
+  The fan thread.
 */
 
 #include <unistd.h>
@@ -13,6 +15,8 @@
 #include <pigpiod_if2.h>
 
 #include "fan.h"
+
+char *cmdErrStr(int);
 
 /*
   ------------------------------------------------------------------------------
@@ -41,11 +45,16 @@ get_temp(void)
 void
 fan_cleanup(void *input)
 {	
+	int rc;
 	struct fan_params *params;
 
 	params = (struct fan_params *)input;
 
-	hardware_PWM(params->pi, params->pin, 100, 0);
+	rc = gpioHardwarePWM(params->pin, 100, 0);
+
+	if (0 > rc)
+		fprintf(stderr, "gpioHardwarePWM() failed: %s\n",
+			cmdErrStr(rc));
 
 	return;
 }
@@ -71,30 +80,33 @@ fan(void *input)
 	pthread_cleanup_push(fan_cleanup, input);
 
 	for (;;) {
+		int duty;
+
 		nanosleep(&sleep, NULL);
 		temp = get_temp();
 
-		if (70 <= temp) {
-			/* Above 70 C, run at full speed. */
-			rc = hardware_PWM(params->pi,
-					  params->pin, 100, 1000000);
-		} else if (50 > temp) {
-			/* Below 50 C, don't run. */
-			rc = hardware_PWM(params->pi,
-					  params->pin, 100, 0);
+		if (params->high < temp) {
+			/* Above 'high', run at full speed. */
+			duty = PI_HW_PWM_RANGE;
+		} else if (params->low > temp) {
+			/* Below 'low', don't run. */
+			duty = 0;
 		} else {
-			int duty;
+			/*
+			  Between 'low' and 'high', range from 'bias'
+			  to 1,000,000.
+			*/
 
-			/* From 50 C to 70 C, range from 200000 to 1000000. */
-			duty = ((((temp - 50) * 5) *
-				 (PI_HW_PWM_RANGE - 200000)) / 100) + 200000;
-			rc = hardware_PWM(params->pi,
-					  params->pin, 100, duty);
+			duty = ((((temp - params->low) * 5) *
+				 (PI_HW_PWM_RANGE - params->bias)) / 100) +
+				params->bias;
 		}
+
+		rc = gpioHardwarePWM(params->pin, 100, duty);
 
 		if (0 > rc)
 			fprintf(stderr, "hardware_PWM() failed: %s\n",
-				pigpio_error(rc));
+				cmdErrStr(rc));
 
 		pthread_testcancel();
 	}

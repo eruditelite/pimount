@@ -11,7 +11,7 @@
 #include <limits.h>
 #include <pigpiod_if2.h>
 
-static int pi = -1;
+char *cmdErrStr(int);
 
 static int default_pin = 18;
 static int default_frequency = 100;
@@ -83,25 +83,25 @@ main(int argc, char *argv[])
 	strcpy(ip_address, "localhost");
 	strcpy(ip_port, "8888");
 
-	pi = pigpio_start(ip_address, ip_port);
+	rc = gpioInitialise();
 
-	if (0 > pi) {
-		fprintf(stderr, "pigpio_start() failed: %d\n", pi);
+	if (PI_INIT_FAILED == rc) {
+		fprintf(stderr, "gpioinitialise() failed: %s\n", cmdErrStr(rc));
 
 		return EXIT_FAILURE;
 	}
 
-	rc = hardware_PWM(pi, pin, frequency, ((duty * PI_HW_PWM_RANGE) / 100));
+	rc = gpioHardwarePWM(pin, frequency, ((duty * PI_HW_PWM_RANGE) / 100));
 
 	if (0 > rc) {
 		fprintf(stderr, "hardware_PWM() failed: %s\n",
-			pigpio_error(rc));
-		pigpio_stop(pi);
+			cmdErrStr(rc));
+		gpioTerminate();
 
 		return -1;
 	}
 
-	pigpio_stop(pi);
+	gpioTerminate();
 
 	return 0;
 }

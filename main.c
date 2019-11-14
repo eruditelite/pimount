@@ -1,12 +1,18 @@
 /*
   main.c
 
-  == Defaults...
+  == GPIO pins used...
 
   buttons : 0:22:11:9:10
   ra : 26:19:13:6:5
   dec : 27:17:4:3:2
   fan : 18
+
+  The above are based on the current hardware design -- and most were
+  chosen to make routing the board easier with one exception.  Since
+  hardware PWM is used to control fan speed, 18 is the only safe
+  choice.  According to the pigpio documentation, hardware PWM is
+  avaialble on pin 18 on all Pi models.
 */
 
 #include <unistd.h>
@@ -17,15 +23,16 @@
 #include <signal.h>
 #include <limits.h>
 #include <pthread.h>
-#include <pigpiod_if2.h>
 #include <arpa/inet.h>
+
+#include <pigpio.h>
 
 #include "control.h"
 #include "fan.h"
 #include "pins.h"
 #include "a4988.h"
 
-static int pi = -1;
+char *cmdErrStr(int);
 
 static pthread_t ra_thread;
 static pthread_t dec_thread;
@@ -199,25 +206,27 @@ handler(__attribute__((unused)) int signal)
 	pthread_join(ra_thread, NULL);
 	pthread_cancel(dec_thread);
 	pthread_join(dec_thread, NULL);
-
-	if (-1 != pi)
-		pigpio_stop(pi);
+	gpioTerminate();
 
 	pthread_exit(NULL);
 }
 
 /*
   ------------------------------------------------------------------------------
-  pb_callback
+  pb_isr
 */
 
 static void
-pb_callback(__attribute__((unused)) int pi,
-	    unsigned int pin,
-	    __attribute__((unused)) unsigned int level,
-	    __attribute__((unused)) unsigned int tick)
+pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 {
-	if (PB_OFF == pin) {
+	static uint32_t last_tick;
+
+	if (100000 > (tick - last_tick))
+		return;
+
+	if (PB_OFF == (unsigned)gpio) {
+		printf("gpio=%d tick=%u\n", gpio, tick);
+
 		/*
 		  Set to follow the Earth's rotation.
 		*/
@@ -231,29 +240,37 @@ pb_callback(__attribute__((unused)) int pi,
 		pthread_mutex_lock(&ra.mutex);
 		ra.current_speed = RA_SPEED_DEFAULT;
 		pthread_mutex_unlock(&ra.mutex);
-	} else if (PB_UP == pin || PB_DOWN == pin) {
+	} else if (PB_UP == (unsigned)gpio || PB_DOWN == (unsigned)gpio) {
+		printf("gpio=%d tick=%u\n", gpio, tick);
+
 		/*
 		  Increase or Decrease the DEC Motion
 		*/
 
 		pthread_mutex_lock(&dec.mutex);
 
-		if (PB_UP == pin && dec.current_speed < dec.max_speed)
+		if (PB_UP ==
+		    (unsigned)gpio && dec.current_speed < dec.max_speed)
 			++ dec.current_speed;
-		else if (PB_DOWN == pin && dec.current_speed > 0)
+		else if (PB_DOWN ==
+			 (unsigned)gpio && dec.current_speed > 0)
 			-- dec.current_speed;
 
 		pthread_mutex_unlock(&dec.mutex);
-	} else if (pin == pb_pins[2] || pin == pb_pins[3]) {
+	} else if ((unsigned)gpio == pb_pins[2] ||
+		   (unsigned)gpio == pb_pins[3]) {
+		printf("gpio=%d tick=%u\n", gpio, tick);
+
 		/*
 		  Increase or Decrease the DEC Motion
 		*/
 
 		pthread_mutex_lock(&ra.mutex);
 
-		if (PB_LEFT == pin && ra.current_speed > 0)
+		if (PB_LEFT == (unsigned)gpio && ra.current_speed > 0)
 			-- ra.current_speed;
-		else if (PB_RIGHT == pin && ra.current_speed < ra.max_speed)
+		else if (PB_RIGHT ==
+			 (unsigned)gpio && ra.current_speed < ra.max_speed)
 			++ ra.current_speed;
 
 		pthread_mutex_unlock(&ra.mutex);
@@ -298,33 +315,22 @@ main(int argc, char *argv[])
 	int rc;
 	int opt = 0;
 	int long_index = 0;
-	char ip_address[NAME_MAX];
-	char ip_port[NAME_MAX];
 	char *token;
 	unsigned i;
 	unsigned j;
 	int pins[3][5];
 	int fan_pin;
-	int callback_id;
-	int glitch = 1000;	/* Default is 1000... */
 	struct fan_params fan_input;
 	struct control_input control_parameters;
 
 	static struct option long_options[] = {
 		{"help",       required_argument, 0,  'h' },
-		{"glitch",     required_argument, 0,  'g' },
 		{0,            0,                 0,  0   }
 	};
 
-	strcpy(ip_address, "localhost");
-	strcpy(ip_port, "8888");
-
-	while ((opt = getopt_long(argc, argv, "g:h", 
+	while ((opt = getopt_long(argc, argv, "h", 
 				  long_options, &long_index )) != -1) {
 		switch (opt) {
-		case 'g':
-			glitch = strtol(optarg, NULL, 0);
-			break;
 		case 'h':
 			usage(EXIT_SUCCESS);
 			break;
@@ -360,10 +366,14 @@ main(int argc, char *argv[])
 		}
 	}
 
-	pi = pigpio_start(ip_address, ip_port);
+	/*
+	  Initialize pigpio
+	*/
 
-	if (0 > pi) {
-		fprintf(stderr, "pigpio_start() failed: %d\n", pi);
+	rc = gpioInitialise();
+
+	if (PI_INIT_FAILED == rc) {
+		fprintf(stderr, "gpioinitialise() failed: %s\n", cmdErrStr(rc));
 
 		return EXIT_FAILURE;
 	}
@@ -384,7 +394,9 @@ main(int argc, char *argv[])
 	fan_pin = atoi(argv[optind++]);
 
 	fan_input.pin = fan_pin;
-	fan_input.pi = pi;
+	fan_input.bias = 200000;
+	fan_input.high = 70;
+	fan_input.low = 50;
 
 	rc = pthread_create(&fan_thread, NULL, fan, (void *)&fan_input);
 
@@ -399,7 +411,6 @@ main(int argc, char *argv[])
 	*/
 
 	strcpy(ra.driver.description, "RA Driver");
-	ra.driver.pigpio = pi;
 	ra.driver.direction = pins[1][0];
 	ra.driver.step = pins[1][1];
 	ra.driver.sleep = pins[1][2];
@@ -417,7 +428,7 @@ main(int argc, char *argv[])
 
 	if (0 != a4988_initialize(&(ra.driver))) {
 		fprintf(stderr, "RA Initialization Failed!\n");
-		pigpio_stop(pi);
+		gpioTerminate();
 
 		return EXIT_FAILURE;
 	} else {
@@ -434,7 +445,6 @@ main(int argc, char *argv[])
 	pthread_mutex_unlock(&ra.mutex);
 
 	strcpy(dec.driver.description, "DEC Driver");
-	dec.driver.pigpio = pi;
 	dec.driver.direction = pins[2][0];
 	dec.driver.step = pins[2][1];
 	dec.driver.sleep = pins[2][2];
@@ -449,7 +459,7 @@ main(int argc, char *argv[])
 	if (0 != a4988_initialize(&(dec.driver))) {
 		fprintf(stderr, "DEC Initialization Failed!\n");
 		a4988_finalize(&(ra.driver));
-		pigpio_stop(pi);
+		gpioTerminate();
 
 		return EXIT_FAILURE;
 	} else {
@@ -470,13 +480,11 @@ main(int argc, char *argv[])
 	*/
 
 	for (i = 0; i < (sizeof(pins[0]) / sizeof(int)); ++i) {
-		rc = pins_set_mode(pi, pins[0][i], PI_INPUT);
-		rc |= pins_set_pull_up_down(pi, pins[0][i], PI_PUD_UP);
-		rc |= pins_set_glitch_filter(pi, pins[0][i], glitch);
-		callback_id = pins_callback(pi, pins[0][i], FALLING_EDGE,
-					    pb_callback);
+		rc = pins_set_mode(pins[0][i], PI_INPUT);
+		rc |= pins_set_pull_up_down(pins[0][i], PI_PUD_UP);
+		rc |= pins_isr(pins[0][i], FALLING_EDGE, 0, pb_isr);
 
-		if (0 > rc || 0 > callback_id) {
+		if (0 > rc) {
 			fprintf(stderr, "Push Button Setup Failed!\n");
 
 			return EXIT_FAILURE;
@@ -506,7 +514,7 @@ main(int argc, char *argv[])
 	pthread_join(dec_thread, NULL);
 	a4988_finalize(&(ra.driver));
 	a4988_finalize(&(dec.driver));
-	pigpio_stop(pi);
+	gpioTerminate();
 
 	pthread_exit(NULL);
 }

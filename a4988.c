@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
-#include <pigpiod_if2.h>
+
+#include <pigpio.h>
 
 #include "a4988.h"
 #include "pins.h"
@@ -20,12 +21,12 @@ a4988_initialize(struct a4988 *driver)
 {
 	int rc = 0;
 
-	rc |= pins_set_mode(driver->pigpio, driver->sleep, PI_OUTPUT);
-	rc |= pins_gpio_write(driver->pigpio, driver->sleep, 0);
-	rc |= pins_set_mode(driver->pigpio, driver->direction, PI_OUTPUT);
-	rc |= pins_set_mode(driver->pigpio, driver->step, PI_OUTPUT);
-	rc |= pins_set_mode(driver->pigpio, driver->ms1, PI_OUTPUT);
-	rc |= pins_set_mode(driver->pigpio, driver->ms2, PI_OUTPUT);
+	rc |= pins_set_mode(driver->sleep, PI_OUTPUT);
+	rc |= pins_gpio_write(driver->sleep, 0);
+	rc |= pins_set_mode(driver->direction, PI_OUTPUT);
+	rc |= pins_set_mode(driver->step, PI_OUTPUT);
+	rc |= pins_set_mode(driver->ms1, PI_OUTPUT);
+	rc |= pins_set_mode(driver->ms2, PI_OUTPUT);
 
 	if (0 != rc)
 		return -1;
@@ -41,11 +42,11 @@ a4988_initialize(struct a4988 *driver)
 void
 a4988_finalize(struct a4988 *driver)
 {
-	pins_set_mode(driver->pigpio, driver->sleep, PI_INPUT);
-	pins_set_mode(driver->pigpio, driver->direction, PI_INPUT);
-	pins_set_mode(driver->pigpio, driver->step, PI_INPUT);
-	pins_set_mode(driver->pigpio, driver->ms1, PI_INPUT);
-	pins_set_mode(driver->pigpio, driver->ms2, PI_INPUT);
+	pins_set_mode(driver->sleep, PI_INPUT);
+	pins_set_mode(driver->direction, PI_INPUT);
+	pins_set_mode(driver->step, PI_INPUT);
+	pins_set_mode(driver->ms1, PI_INPUT);
+	pins_set_mode(driver->ms2, PI_INPUT);
 
 	return;
 }
@@ -89,15 +90,15 @@ a4988_enable(struct a4988 *driver,
 		break;
 	}
 
-	rc |= pins_gpio_write(driver->pigpio, driver->ms1, ms1);
-	rc |= pins_gpio_write(driver->pigpio, driver->ms2, ms2);
+	rc |= pins_gpio_write(driver->ms1, ms1);
+	rc |= pins_gpio_write(driver->ms2, ms2);
 
 	switch (direction) {
 	case A4988_DIR_CW:
-		rc |= pins_gpio_write(driver->pigpio, driver->direction, 0);
+		rc |= pins_gpio_write(driver->direction, 0);
 		break;
 	case A4988_DIR_CCW:
-		rc |= pins_gpio_write(driver->pigpio, driver->direction, 1);
+		rc |= pins_gpio_write(driver->direction, 1);
 		break;
 	default:
 		fprintf(stderr, "Bad Direction: %d\n", direction);
@@ -105,7 +106,7 @@ a4988_enable(struct a4988 *driver,
 		break;
 	}
 
-	rc |= pins_gpio_write(driver->pigpio, driver->sleep, 1);
+	rc |= pins_gpio_write(driver->sleep, 1);
 
 	if (0 != rc)
 		return -1;
@@ -128,7 +129,7 @@ a4988_disable(struct a4988 *driver)
 {
 	int rc;
 
-	rc = pins_gpio_write(driver->pigpio, driver->sleep, 0);
+	rc = pins_gpio_write(driver->sleep, 0);
 
 	if (0 != rc)
 		return -1;
@@ -161,9 +162,9 @@ a4988_step(struct a4988 *driver)
 	delay.tv_nsec = 100000;
 
 	/* Pulse */
-	rc |= pins_gpio_write(driver->pigpio, driver->step, 1);
+	rc |= pins_gpio_write(driver->step, 1);
 	nanosleep(&delay, NULL);
-	rc |= pins_gpio_write(driver->pigpio, driver->step, 0);
+	rc |= pins_gpio_write(driver->step, 0);
 
 	/*
 	  Delay at least 2 ms

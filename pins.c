@@ -5,11 +5,14 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
-#include <pigpiod_if2.h>
+
+#include <pigpio.h>
 
 #include "pins.h"
 
 /*#define TRACE*/
+
+char *cmdErrStr(int);
 
 /*
   ------------------------------------------------------------------------------
@@ -17,7 +20,7 @@
 */
 
 int
-pins_set_mode(int pigpio, unsigned pin, unsigned mode)
+pins_set_mode(unsigned pin, unsigned mode)
 {
 	int rc;
 
@@ -26,11 +29,11 @@ pins_set_mode(int pigpio, unsigned pin, unsigned mode)
 	       __FILE__, __func__, __LINE__, pin, mode);
 #endif
 
-	rc = set_mode(pigpio, pin, mode);
+	rc = gpioSetMode(pin, mode);
 
 	if (0 != rc)
-		fprintf(stderr, "set_mode(%d,%u,%u) failed: %s\n",
-			pigpio, pin, mode, pigpio_error(rc));
+		fprintf(stderr, "gpioSetMode(%u,%u) failed: %s\n",
+			pin, mode, cmdErrStr(rc));
 
 	return rc;
 }
@@ -41,7 +44,7 @@ pins_set_mode(int pigpio, unsigned pin, unsigned mode)
 */
 
 int
-pins_set_pull_up_down(int pigpio, unsigned pin, unsigned pud)
+pins_set_pull_up_down(unsigned pin, unsigned pud)
 {
 	int rc;
 
@@ -50,35 +53,11 @@ pins_set_pull_up_down(int pigpio, unsigned pin, unsigned pud)
 	       __FILE__, __func__, __LINE__, pin, pud);
 #endif
 
-	rc = set_pull_up_down(pigpio, pin, pud);
+	rc = gpioSetPullUpDown(pin, pud);
 
 	if (0 != rc)
-		fprintf(stderr, "set_pull_up_down(%d,%u,%u) failed: %s\n",
-			pigpio, pin, pud, pigpio_error(rc));
-
-	return rc;
-}
-
-/*
-  ------------------------------------------------------------------------------
-  pins_set_glitch_filter
-*/
-
-int
-pins_set_glitch_filter(int pigpio, unsigned pin, unsigned steady)
-{
-	int rc;
-
-#ifdef TRACE
-	printf("%s:%s:%d - pin=%u steady=%u\n",
-	       __FILE__, __func__, __LINE__, pin, steady);
-#endif
-
-	rc = set_glitch_filter(pigpio, pin, steady);
-
-	if (0 != rc)
-		fprintf(stderr, "set_glitch_filter(%d,%u,%u) failed: %s\n",
-			pigpio, pin, steady, pigpio_error(rc));
+		fprintf(stderr, "gpioSetPullUpDown(%u,%u) failed: %s\n",
+			pin, pud, cmdErrStr(rc));
 
 	return rc;
 }
@@ -89,7 +68,7 @@ pins_set_glitch_filter(int pigpio, unsigned pin, unsigned steady)
 */
 
 int
-pins_gpio_write(int pigpio, unsigned pin, unsigned level)
+pins_gpio_write(unsigned pin, unsigned level)
 {
 	int rc;
 
@@ -98,31 +77,30 @@ pins_gpio_write(int pigpio, unsigned pin, unsigned level)
 	       __FILE__, __func__, __LINE__, pin, level);
 #endif
 
-	rc = gpio_write(pigpio, pin, level);
+	rc = gpioWrite(pin, level);
 
 	if (0 != rc)
-		fprintf(stderr, "gpio_write(%d,%u,%u) failed: %s\n",
-			pigpio, pin, level, pigpio_error(rc));
+		fprintf(stderr, "gpioWrite(%u,%u) failed: %s\n",
+			pin, level, cmdErrStr(rc));
 
 	return rc;
 }
 
 /*
   ------------------------------------------------------------------------------
-  pins_callback
+  pins_isr
 */
 
 int
-pins_callback(int pigpio, unsigned pin, unsigned edge,
-	      void (*cb)(int, unsigned, unsigned, unsigned))
+pins_isr(unsigned pin, unsigned edge, int timeout, gpioISRFunc_t func)
 {
 	int rc;
 
-	rc = callback(pigpio, pin, edge, cb);
+	rc = gpioSetISRFunc(pin, edge, timeout, func);
 
 	if (0 > rc)
-		fprintf(stderr, "callback(%d,%u,%u,%p) failed: %d(%s)\n",
-			pigpio, pin, edge, cb, rc, pigpio_error(rc));
+		fprintf(stderr, "gpioSetISRFunc(%u,%u,%d, %p) failed: %s\n",
+			pin, edge, timeout, func, cmdErrStr(rc));
 
 	return rc;
 }
