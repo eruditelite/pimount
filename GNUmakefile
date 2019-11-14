@@ -8,6 +8,10 @@ LIBS = -lpigpio -lrt -lpthread
 
 all: pimount
 
+cscope:
+	ls *.c *.h >cscope.files
+	cscope -b
+
 pimount: main.c a4988.o pins.o fan.o control.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
@@ -24,4 +28,4 @@ control.o: control.c control.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *~ *.o pimount
+	rm -f *~ *.o cscope* pimount
