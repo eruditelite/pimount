@@ -78,6 +78,7 @@ static struct speed dec_speeds[] = {
 
 struct motion {
 	pthread_mutex_t mutex;
+	pthread_cond_t cond;
 	struct a4988 driver;
 	struct speed *speed;
 	int current_speed;
@@ -181,9 +182,7 @@ stepper(void *input)
 			sleep.tv_nsec = 0;
 		}
 
-		pthread_mutex_unlock(&motion->mutex);
-		nanosleep(&sleep, NULL);
-		pthread_mutex_lock(&motion->mutex);
+		pthread_cond_timedwait(&motion->cond, &motion->mutex, &sleep);
 	}
 
 	pthread_cleanup_pop(1);
@@ -220,34 +219,29 @@ static void
 pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 {
 	static uint32_t last_tick;
+	int ra_change = 0;
+	int dec_change = 0;
 
 	if (100000 > (tick - last_tick))
 		return;
 
 	if (PB_OFF == (unsigned)gpio) {
-		printf("gpio=%d tick=%u\n", gpio, tick);
-
 		/*
 		  Set to follow the Earth's rotation.
 		*/
 
 		/* DEC off */
-		pthread_mutex_lock(&dec.mutex);
 		dec.current_speed = DEC_SPEED_DEFAULT;
-		pthread_mutex_unlock(&dec.mutex);
 
 		/* RA at Earth speed */
-		pthread_mutex_lock(&ra.mutex);
 		ra.current_speed = RA_SPEED_DEFAULT;
-		pthread_mutex_unlock(&ra.mutex);
-	} else if (PB_UP == (unsigned)gpio || PB_DOWN == (unsigned)gpio) {
-		printf("gpio=%d tick=%u\n", gpio, tick);
 
+		ra_change = 1;
+		dec_change = 1;
+	} else if (PB_UP == (unsigned)gpio || PB_DOWN == (unsigned)gpio) {
 		/*
 		  Increase or Decrease the DEC Motion
 		*/
-
-		pthread_mutex_lock(&dec.mutex);
 
 		if (PB_UP ==
 		    (unsigned)gpio && dec.current_speed < dec.max_speed)
@@ -256,16 +250,12 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 			 (unsigned)gpio && dec.current_speed > 0)
 			-- dec.current_speed;
 
-		pthread_mutex_unlock(&dec.mutex);
+		dec_change = 1;
 	} else if ((unsigned)gpio == pb_pins[2] ||
 		   (unsigned)gpio == pb_pins[3]) {
-		printf("gpio=%d tick=%u\n", gpio, tick);
-
 		/*
 		  Increase or Decrease the DEC Motion
 		*/
-
-		pthread_mutex_lock(&ra.mutex);
 
 		if (PB_LEFT == (unsigned)gpio && ra.current_speed > 0)
 			-- ra.current_speed;
@@ -273,8 +263,14 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 			 (unsigned)gpio && ra.current_speed < ra.max_speed)
 			++ ra.current_speed;
 
-		pthread_mutex_unlock(&ra.mutex);
+		ra_change = 1;
 	}
+
+	if (0 != ra_change)
+		pthread_cond_signal(&ra.cond);
+
+	if (0 != dec_change)
+		pthread_cond_signal(&dec.cond);
 
 	return;
 }
@@ -421,6 +417,7 @@ main(int argc, char *argv[])
 	ra.max_speed = RA_SPEED_MAX;
 	pthread_mutex_init(&ra.mutex, NULL);
 	pthread_mutex_lock(&ra.mutex);
+	pthread_cond_init(&ra.cond, NULL);
 
 	printf("RA Pins: d/st/sl/2/1 = %d/%d/%d/%d/%d\n",
 	       ra.driver.direction, ra.driver.step, ra.driver.sleep,
@@ -455,6 +452,7 @@ main(int argc, char *argv[])
 	dec.max_speed = DEC_SPEED_MAX;
 	pthread_mutex_init(&dec.mutex, NULL);
 	pthread_mutex_lock(&dec.mutex);
+	pthread_cond_init(&dec.cond, NULL);
 
 	if (0 != a4988_initialize(&(dec.driver))) {
 		fprintf(stderr, "DEC Initialization Failed!\n");
