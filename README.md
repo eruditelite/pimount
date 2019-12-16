@@ -37,6 +37,9 @@ complete.  The components are as follow.
     'ELEGOO Stepstick Stepper Motor Driver Module A4988' -- others are
     available, but KiCAD footprints must be created.  Here's how the
     wiring works.
+	
+  * I "reverse engineered" TrueTrack to figure out how to drive the
+    stepper motors.  See appendix below...
 
 ### Stepper Motor Wiring and Current Limit ###
 

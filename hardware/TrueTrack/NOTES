@@ -1,0 +1,31 @@
+For the capture,
+
+## Pins from the mount to the BOB
+
+Pin 1 : Orange on the BOB
+Pin 2 : Green on the BOB
+Pin 3 : Brown on the BOB
+Pin 4 : Red on the BOB
+
+## 4 Wire Stepper Motor
+
+Pins 1 and 4 are one winding
+Pins 2 and 3 are the other
+
+## 
+
+
+
+## ERRATA
+
+BOB is 1:1
+
+1: orange
+2: green
+3: brown
+4: red
+
+pin 1 to pin 4 : about 20 ohms
+pin 2 to pin 3 : about 20 ohms
+other combinations openish
+
