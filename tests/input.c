@@ -12,6 +12,8 @@
 
 #include <pigpio.h>
 
+#include "../pins.h"
+
 #define XA  9
 #define XB 11
 #define YA 12
@@ -45,7 +47,7 @@ handler(__attribute__((unused)) int signal)
   pin_isr
 */
 
-void
+static void
 pin_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 {
 	static uint32_t last_tick;
@@ -88,7 +90,7 @@ pin_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
   setup_pin
 */
 
-int
+static int
 setup_pin(int gpio)
 {
 	int rc;
