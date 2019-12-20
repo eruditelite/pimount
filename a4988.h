@@ -100,6 +100,6 @@ int a4988_initialize(struct a4988 *);
 void a4988_finalize(struct a4988 *);
 int a4988_enable(struct a4988 *, enum a4988_res, enum a4988_dir);
 int a4988_disable(struct a4988 *);
-int a4988_step(struct a4988 *);
+int a4988_step(struct a4988 *, unsigned);
 
 #endif	/* _A4988_H_ */

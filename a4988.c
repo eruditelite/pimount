@@ -137,16 +137,58 @@ a4988_disable(struct a4988 *driver)
 	return 0;
 }
 
+
+struct timespec
+subtract_timespec(struct timespec start, struct timespec end) {
+	struct timespec temp;
+
+	if ((end.tv_nsec - start.tv_nsec) < 0) {
+		temp.tv_sec = end.tv_sec - start.tv_sec - 1;
+		temp.tv_nsec = 1000000000 + end.tv_nsec - start.tv_nsec;
+	} else {
+		temp.tv_sec = end.tv_sec - start.tv_sec;
+		temp.tv_nsec = end.tv_nsec - start.tv_nsec;
+	}
+
+	return temp;
+}
+
 /*
   ------------------------------------------------------------------------------
   a4988_step
 */
 
 int
-a4988_step(struct a4988 *driver)
+a4988_step(struct a4988 *driver, unsigned width)
 {
 	int rc = 0;
 	struct timespec delay;
+	static int first_call = 1;
+	static struct timespec last;
+
+	/*
+	  If called with 2 ms of the last pulse, the motor just
+	  "rattles".  So, make sure it's been at least 2 ms since the
+	  last pulse.
+	*/
+
+	if (!first_call) {
+		struct timespec diff;
+		struct timespec before;
+		struct timespec after;
+
+		clock_gettime(CLOCK_MONOTONIC, &delay);
+		diff = subtract_timespec(last, delay);
+
+		if ((diff.tv_sec == 0) &&
+		    (diff.tv_nsec < (2 * 1000 * 1000))) {
+			diff.tv_nsec = (2 * 1000 * 1000);
+			clock_gettime(CLOCK_MONOTONIC, &before);
+			nanosleep(&diff, NULL);
+			clock_gettime(CLOCK_MONOTONIC, &after);
+			diff = subtract_timespec(before, after);
+		}
+	}
 
 	/*
 	  Set the Step Pulse Width
@@ -159,22 +201,24 @@ a4988_step(struct a4988 *driver)
 	*/
 
 	delay.tv_sec = 0;
-	delay.tv_nsec = 100000;
+	delay.tv_nsec = width * 1000;
+
+	if (delay.tv_nsec < (100 * 1000))
+		delay.tv_nsec = (100 * 1000);
 
 	/* Pulse */
 	rc |= pins_gpio_write(driver->step, 1);
 	nanosleep(&delay, NULL);
 	rc |= pins_gpio_write(driver->step, 0);
 
-	/*
-	  Delay at least 2 ms
+	if (first_call)
+		first_call = 0;
 
-	  Less than this and the stepper motor just "rattles"...
+	/*
+	  Record the time as the last pulse.
 	*/
 
-	delay.tv_sec = 0;
-	delay.tv_nsec = 2000000;
-	nanosleep(&delay, NULL);
+	clock_gettime(CLOCK_MONOTONIC, &last);
 
 	if (0 != rc)
 		return -1;

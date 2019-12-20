@@ -1,4 +1,5 @@
 control
 fan
 input
+output
 *.o

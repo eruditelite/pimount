@@ -6,7 +6,7 @@ endif
 
 LIBS = -lpigpio -lrt
 
-all: control input fan
+all: control input output fan
 
 control: control.o
 	gcc $(CFLAGS) -o $@ $^
@@ -26,5 +26,17 @@ input: input.o
 input.o: input.c
 	gcc $(CFLAGS) -c -o $@ $<
 
+output: output.o a4988.o pins.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+output.o: output.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+a4988.o: ../a4988.c ../a4988.h
+	gcc $(CFLAGS) -c -o $@ $<
+
+pins.o: ../pins.c ../pins.h
+	gcc $(CFLAGS) -c -o $@ $<
+
 clean:
-	rm -f *~ *.o fan control input
+	rm -f *~ *.o fan control input output

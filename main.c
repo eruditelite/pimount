@@ -167,7 +167,7 @@ stepper(void *input)
 		clock_gettime(CLOCK_REALTIME, &now);
 
 		if (1 == speed->state) {
-			a4988_step(driver);
+			a4988_step(driver, 50);
 
 			/* calculate the time to wake up */
 			alarm.tv_sec = now.tv_sec;
