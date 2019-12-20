@@ -140,9 +140,9 @@ stepper(void *input)
 	for (;;) {
 		struct timespec start;
 		struct timespec now;
-		struct timespec sleep;
+		struct timespec alarm;
 
-		clock_gettime(CLOCK_MONOTONIC, &start);
+		clock_gettime(CLOCK_REALTIME, &start);
 
 		/*
 		  See if Anything Changed, Update if Needed
@@ -164,25 +164,22 @@ stepper(void *input)
 
 		pthread_testcancel();
 
+		clock_gettime(CLOCK_REALTIME, &now);
+
 		if (1 == speed->state) {
 			a4988_step(driver);
 
-			/* calculate sleep time... */
-			clock_gettime(CLOCK_MONOTONIC, &now);
-
-			if (now.tv_sec > start.tv_sec)
-				now.tv_nsec += 1000000000;
-
-			sleep.tv_sec = 0;
-			sleep.tv_nsec = (speed->delay * 1000)
-				- (now.tv_nsec - start.tv_nsec)
-				- 2000000;
+			/* calculate the time to wake up */
+			alarm.tv_sec = now.tv_sec;
+			alarm.tv_nsec =
+				now.tv_nsec +
+				(speed->delay * 1000000) - 2000000;
 		} else {
-			sleep.tv_sec = 1;
-			sleep.tv_nsec = 0;
+			alarm.tv_sec = now.tv_sec + 1;
+			alarm.tv_nsec = now.tv_nsec;
 		}
 
-		pthread_cond_timedwait(&motion->cond, &motion->mutex, &sleep);
+		pthread_cond_timedwait(&motion->cond, &motion->mutex, &alarm);
 	}
 
 	pthread_cleanup_pop(1);
