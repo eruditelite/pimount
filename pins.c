@@ -64,6 +64,33 @@ pins_set_pull_up_down(unsigned pin, unsigned pud)
 
 /*
   ------------------------------------------------------------------------------
+  pins_gpio_read
+*/
+
+int
+pins_gpio_read(unsigned pin)
+{
+	int rc;
+
+#ifdef TRACE
+	printf("%s:%s:%d - pin=%u\n",
+	       __FILE__, __func__, __LINE__, pin, level);
+#endif
+
+	rc = gpioRead(pin);
+
+	if (PI_BAD_GPIO == rc) {
+		fprintf(stderr, "gpioRead(%u) failed: %s\n",
+			pin, cmdErrStr(rc));
+
+		return -1;
+	}
+
+	return rc;
+}
+
+/*
+  ------------------------------------------------------------------------------
   pins_gpio_write
 */
 
