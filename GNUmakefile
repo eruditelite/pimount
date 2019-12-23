@@ -7,10 +7,14 @@ endif
 LIBS = -lpigpio -lrt -lpthread
 
 all: pimount
+	make -C tests all
 
 cscope:
 	ls *.c *.h >cscope.files
 	cscope -b
+
+tests:
+	make -C tests
 
 pimount: main.c a4988.o pins.o fan.o control.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
@@ -28,4 +32,5 @@ control.o: control.c control.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
+	make -C tests clean
 	rm -f *~ *.o cscope* pimount
