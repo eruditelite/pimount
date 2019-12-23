@@ -41,6 +41,17 @@ complete.  The components are as follow.
   * I "reverse engineered" TrueTrack to figure out how to drive the
     stepper motors.  See appendix below...
 
+### References ###
+
+Others have modified the system as well. See, for example,
+
+  * [PIC 16F627 Based EQ-5 / CG-5 Dual Axis Hand Controller]<http://telescope.marford.me.uk/Projects/PICcontroller.htm>
+  * [THE EQMOD PROJECT]<http://eq-mod.sourceforge.net/>
+  * [AstroEQ]<https://www.astroeq.co.uk/tutorials.php?link=custommotors>
+  * [Motor]<https://www.digikey.com/catalog/en/partgroup/pm-series/536>
+  * [Motor]<https://www.cloudynights.com/topic/631615-want-to-make-diy-controller-for-my-cg-4-dual-axis-motors/>
+  * 
+
 ### Stepper Motor Wiring and Current Limit ###
 
 Set the voltage (potentiometer to ground) to 125 mV.  Motor voltage
