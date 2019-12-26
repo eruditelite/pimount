@@ -32,7 +32,7 @@ complete.  The components are as follow.
 
   * The stepper motors use different sized connectors to avoid
     confusion.  The declination motor uses a RJ9 and the right
-    ascension motor uses a RJ10.  Instead of creating a driver, I use
+    ascension motor uses a RJ11.  Instead of creating a driver, I use
     a pre-made driver based on the A4988.  The version I used is the
     'ELEGOO Stepstick Stepper Motor Driver Module A4988' -- others are
     available, but KiCAD footprints must be created.  Here's how the
