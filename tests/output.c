@@ -39,14 +39,27 @@ usage(int exit_code)
 	       "<direction> : 0:CW, 1:CCW\n" \
 	       "<width> : Width of the pulse in micro seconds\n" \
 	       "<delay> : Delay between pulses in micro seconds\n" \
-	       "<steps> : Number of steps\n");
+	       "<steps> : Number of steps, 0 means forever...\n");
 
 	exit(exit_code);
 }
 
 /*
-   ------------------------------------------------------------------------------
-   drive
+  ------------------------------------------------------------------------------
+  handler
+*/
+
+static void
+handler(__attribute__((unused)) int signal)
+{
+	printf("--> Terminated...\n");
+	gpioTerminate();
+	exit(EXIT_FAILURE);
+}
+
+/*
+  ------------------------------------------------------------------------------
+  drive
 */
 
 static int
@@ -84,7 +97,7 @@ drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
 	_delay.tv_sec = 0;
 	_delay.tv_nsec = (delay * 1000);
 
-	while (0 < steps--) {
+	for (;;) {
 		rc = a4988_step(&driver, width);
 
 		if (0 != rc) {
@@ -94,6 +107,13 @@ drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
 		}
 
 		nanosleep(&_delay, NULL);
+
+		if (0 < steps) {
+			--steps;
+
+			if (0 == steps)
+				break;
+		}
 	}
 
 	rc = a4988_disable(&driver);
@@ -229,6 +249,15 @@ main(int argc, char *argv[])
 
 		return EXIT_FAILURE;
 	}
+
+ 	/*
+	  Catch Signals
+	*/
+
+	signal(SIGHUP, handler);
+	signal(SIGINT, handler);
+	signal(SIGCONT, handler);
+	signal(SIGTERM, handler);
 
 	/*
 	  Run a Test
