@@ -10,6 +10,7 @@
 
 #include "a4988.h"
 #include "pins.h"
+#include "timespec.h"
 
 /*
   ------------------------------------------------------------------------------
@@ -137,25 +138,11 @@ a4988_disable(struct a4988 *driver)
 	return 0;
 }
 
-
-struct timespec
-subtract_timespec(struct timespec start, struct timespec end) {
-	struct timespec temp;
-
-	if ((end.tv_nsec - start.tv_nsec) < 0) {
-		temp.tv_sec = end.tv_sec - start.tv_sec - 1;
-		temp.tv_nsec = 1000000000 + end.tv_nsec - start.tv_nsec;
-	} else {
-		temp.tv_sec = end.tv_sec - start.tv_sec;
-		temp.tv_nsec = end.tv_nsec - start.tv_nsec;
-	}
-
-	return temp;
-}
-
 /*
   ------------------------------------------------------------------------------
   a4988_step
+
+  width is in us.
 */
 
 int
@@ -165,6 +152,10 @@ a4988_step(struct a4988 *driver, unsigned width)
 	struct timespec delay;
 	static int first_call = 1;
 	static struct timespec last;
+	struct timespec pre;
+	struct timespec post;
+	struct timespec diff;
+	static unsigned offset = 0;
 
 	/*
 	  If called with 2 ms of the last pulse, the motor just
@@ -173,20 +164,13 @@ a4988_step(struct a4988 *driver, unsigned width)
 	*/
 
 	if (!first_call) {
-		struct timespec diff;
-		struct timespec before;
-		struct timespec after;
-
-		clock_gettime(CLOCK_MONOTONIC, &delay);
-		diff = subtract_timespec(last, delay);
+		clock_gettime(CLOCK_MONOTONIC, &diff);
+		diff = timespec_sub(diff, last);
 
 		if ((diff.tv_sec == 0) &&
 		    (diff.tv_nsec < (2 * 1000 * 1000))) {
 			diff.tv_nsec = (2 * 1000 * 1000);
-			clock_gettime(CLOCK_MONOTONIC, &before);
 			nanosleep(&diff, NULL);
-			clock_gettime(CLOCK_MONOTONIC, &after);
-			diff = subtract_timespec(before, after);
 		}
 	}
 
@@ -198,19 +182,39 @@ a4988_step(struct a4988 *driver, unsigned width)
 	  you'll still get that, and not very consistently).
 
 	  Also, the gpio_write calls take about 80 us...
+
+	  To "correct" for system call times etc., measure the actual
+	  time of each pulse and update an "offset" value.
 	*/
 
+	/* calculate the delay (using the offset mentioned above) */
 	delay.tv_sec = 0;
-	delay.tv_nsec = width * 1000;
+	delay.tv_nsec = (width * 1000) - offset;
 
-	if (delay.tv_nsec < (100 * 1000))
+	if (delay.tv_nsec < (100 * 1000)) /* minimum delay */
 		delay.tv_nsec = (100 * 1000);
 
 	/* Pulse */
+	clock_gettime(CLOCK_MONOTONIC, &pre);
 	rc |= pins_gpio_write(driver->step, 1);
 	nanosleep(&delay, NULL);
 	rc |= pins_gpio_write(driver->step, 0);
+	clock_gettime(CLOCK_MONOTONIC, &post);
 
+	/* update offset */
+	diff = timespec_sub(post, pre);
+	delay.tv_sec = 0;
+	delay.tv_nsec = width * 1000;
+
+	if (timespec_gt(diff, delay)) {
+		diff = timespec_sub(diff, delay);
+		offset += diff.tv_nsec;
+	} else {
+		diff = timespec_sub(delay, diff);
+		offset -= diff.tv_nsec;
+	}
+
+	/* if this is the first call, it isn't anymore... */
 	if (first_call)
 		first_call = 0;
 

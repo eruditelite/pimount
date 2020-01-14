@@ -43,34 +43,35 @@ struct speed {
 	int state;
 	enum a4988_res resolution;
 	enum a4988_dir direction;
+	unsigned width;		/* micro seconds */
 	unsigned delay;		/* micro seconds */
 };
 
 static struct speed ra_speeds[] = {
-	{1, A4988_RES_FULL, A4988_DIR_CCW, 0},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 0},
-	{1, A4988_RES_QUARTER, A4988_DIR_CCW, 0},
-	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 0},
-	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 30000}, /* Earth Rotation Speed */
-	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 0},
-	{1, A4988_RES_QUARTER, A4988_DIR_CW, 0},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 0},
-	{1, A4988_RES_FULL, A4988_DIR_CW, 0},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 4000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 10000},
+	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 500, 14100}, /* Earth's Rotation */
+	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},  /* Just stop... */
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 4000},
 };
 
 #define RA_SPEED_DEFAULT 4
 #define RA_SPEED_MAX 8
 
 static struct speed dec_speeds[] = {
-	{1, A4988_RES_FULL, A4988_DIR_CCW, 0},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 0},
-	{1, A4988_RES_QUARTER, A4988_DIR_CCW, 0},
-	{1, A4988_RES_EIGHTH, A4988_DIR_CCW, 0},
-	{0, A4988_RES_EIGHTH, A4988_DIR_CCW, 0}, /* OFF */
-	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 0},
-	{1, A4988_RES_QUARTER, A4988_DIR_CW, 0},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 0},
-	{1, A4988_RES_FULL, A4988_DIR_CW, 0},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 4000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},
+	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 0}, /* OFF */
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 100000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 4000},
 };
 
 #define DEC_SPEED_DEFAULT 4
@@ -167,7 +168,7 @@ stepper(void *input)
 		clock_gettime(CLOCK_REALTIME, &now);
 
 		if (1 == speed->state) {
-			a4988_step(driver, 50);
+			a4988_step(driver, speed->width);
 
 			/* calculate the time to wake up */
 			alarm.tv_sec = now.tv_sec;
@@ -292,7 +293,8 @@ usage(int exit_code)
 	       "         pin connected to step\n" \
 	       "         pin connected to sleep\n" \
 	       "         pin connected to ms2\n" \
-	       "         pin connected to ms1\n");
+	       "         pin connected to ms1\n" \
+	       "<fan pin> : A pin to control the cooling fan\n");
 
 	exit(exit_code);
 }

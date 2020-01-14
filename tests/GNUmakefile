@@ -26,7 +26,7 @@ input: input.o
 input.o: input.c
 	gcc $(CFLAGS) -c -o $@ $<
 
-output: output.o a4988.o pins.o
+output: output.o a4988.o pins.o timespec.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 output.o: output.c
@@ -36,6 +36,9 @@ a4988.o: ../a4988.c ../a4988.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 pins.o: ../pins.c ../pins.h
+	gcc $(CFLAGS) -c -o $@ $<
+
+timespec.o: ../timespec.c ../timespec.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
