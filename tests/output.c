@@ -11,11 +11,11 @@
 #include <getopt.h>
 #include <signal.h>
 #include <limits.h>
-#include <pthread.h>
-#include <arpa/inet.h>
+#include <errno.h>
 
 #include <pigpio.h>
 
+#include "../timespec.h"
 #include "../a4988.h"
 
 char *cmdErrStr(int);		/* For some reason, pigpio doesn't export this! */
@@ -64,11 +64,15 @@ handler(__attribute__((unused)) int signal)
 
 static int
 drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
-      unsigned width, unsigned delay, unsigned steps)
+      unsigned long long width, unsigned long long _delay, unsigned steps)
 {
 	int rc;
 	struct a4988 driver;
-	struct timespec _delay;
+	struct timespec period;
+	struct timespec delay;
+	struct timespec sleep;
+	struct timespec adjust[2];
+	int ai = 0;
 
 	memset(&driver, 0, sizeof(driver));
 
@@ -94,10 +98,34 @@ drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
 		return EXIT_FAILURE;
 	}
 
-	_delay.tv_sec = 0;
-	_delay.tv_nsec = (delay * 1000);
+	period.tv_sec = 0;
+	period.tv_nsec = (width * 1000) + (_delay * 1000);
+	period = timespec_normalise(period);
+	delay.tv_sec = 0;
+	delay.tv_nsec = (_delay * 1000);
+	delay = timespec_normalise(delay);
+	sleep = delay;
 
 	for (;;) {
+		struct timespec offset;
+
+		clock_gettime(CLOCK_MONOTONIC, &adjust[ai++]);
+
+		if (2 == ai) {
+			offset = timespec_sub(adjust[1], adjust[0]);
+			offset = timespec_normalise(offset);
+
+			if (timespec_gt(period, offset)) {
+				offset = timespec_sub(period, offset);
+				sleep = timespec_add(sleep, offset);
+			} else {
+				offset = timespec_sub(offset, period);
+				sleep = timespec_sub(sleep, offset);
+			}
+
+			ai = 0;
+		}
+
 		rc = a4988_step(&driver, width);
 
 		if (0 != rc) {
@@ -106,7 +134,7 @@ drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
 			return EXIT_FAILURE;
 		}
 
-		nanosleep(&_delay, NULL);
+		nanosleep(&sleep, NULL);
 
 		if (0 < steps) {
 			--steps;
@@ -145,8 +173,10 @@ main(int argc, char *argv[])
 	int pins[5];
 	int resolution = -1;
 	int direction = -1;
-	int width = -1;
-	int delay = -1;
+	int width_given = 0;
+	unsigned long long width;
+	int delay_given = 0;
+	unsigned long long delay;
 	int steps = -1;
 
 	static struct option long_options[] = {
@@ -204,10 +234,12 @@ main(int argc, char *argv[])
 
 			break;
 		case 'w':
-			width = atoi(optarg);
+			width_given = 1;
+			width = strtoull(optarg, NULL, 0);
 			break;
 		case 'e':
-			delay = atoi(optarg);
+			delay_given = 1;
+			delay = strtoull(optarg, NULL, 0);
 			break;
 		case 's':
 			steps = atoi(optarg);
@@ -233,8 +265,8 @@ main(int argc, char *argv[])
 
 	if (resolution == -1 ||
 	    direction == -1 ||
-	    width == -1 ||
-	    delay == -1 ||
+	    !width_given ||
+	    !delay_given ||
 	    steps == -1)
 		usage(EXIT_SUCCESS);
 
