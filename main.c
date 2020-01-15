@@ -31,6 +31,7 @@
 #include "fan.h"
 #include "pins.h"
 #include "a4988.h"
+#include "timespec.h"
 
 char *cmdErrStr(int);
 
@@ -52,7 +53,7 @@ static struct speed ra_speeds[] = {
 	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
 	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
 	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 10000},
-	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 500, 14100}, /* Earth's Rotation */
+	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 500, 12000}, /* Earth's Rotation */
 	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},  /* Just stop... */
 	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
 	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
@@ -125,6 +126,10 @@ stepper(void *input)
 	struct a4988 *driver;
 	struct speed *speed;
 	int current_speed;
+	struct timespec period;
+	struct timespec sleep;
+	struct timespec m[2];
+	int mi;
 
 	motion = (struct motion *)input;
 	pthread_mutex_lock(&motion->mutex);
@@ -134,16 +139,21 @@ stepper(void *input)
 	speed += current_speed;
 	pthread_cleanup_push(stepper_cleanup, input);
 
+ 	period.tv_nsec = (speed->width * 1000) + (speed->delay * 1000);
+	period = timespec_normalise(period);
+	sleep.tv_nsec = (speed->delay * 1000);
+	sleep = timespec_normalise(sleep);
+
 	/* First run... */
 	if (1 == speed->state)
 		a4988_enable(driver, speed->resolution, speed->direction);
 
+	mi = 0;
+
 	for (;;) {
-		struct timespec start;
 		struct timespec now;
 		struct timespec alarm;
-
-		clock_gettime(CLOCK_REALTIME, &start);
+		struct timespec offset;
 
 		/*
 		  See if Anything Changed, Update if Needed
@@ -158,6 +168,12 @@ stepper(void *input)
 			speed += current_speed;
 			a4988_disable(driver);
 
+			period.tv_nsec = (speed->width * 1000) +
+				(speed->delay * 1000);
+			period = timespec_normalise(period);
+			sleep.tv_nsec = (speed->delay * 1000);
+			sleep = timespec_normalise(sleep);
+
 			if (1 == speed->state)
 				a4988_enable(driver, speed->resolution,
 					     speed->direction);
@@ -165,16 +181,34 @@ stepper(void *input)
 
 		pthread_testcancel();
 
+		/* POSIX will only work with CLOCK_REALTIME... */
 		clock_gettime(CLOCK_REALTIME, &now);
 
 		if (1 == speed->state) {
 			a4988_step(driver, speed->width);
 
+			/* but offset and sleep are just relative... */
+			clock_gettime(CLOCK_MONOTONIC, &m[mi++]);
+
+			if (2 == mi) {
+				offset = timespec_sub(m[1], m[0]);
+				offset = timespec_normalise(offset);
+
+				if (timespec_gt(period, offset)) {
+					offset = timespec_sub(period, offset);
+					sleep = timespec_add(sleep, offset);
+				} else {
+					offset = timespec_sub(offset, period);
+					sleep = timespec_sub(sleep, offset);
+				}
+
+				mi = 0;
+			}
+
 			/* calculate the time to wake up */
-			alarm.tv_sec = now.tv_sec;
-			alarm.tv_nsec =
-				now.tv_nsec +
-				(speed->delay * 1000000) - 2000000;
+			alarm = now;
+			alarm = timespec_add(alarm, sleep);
+			alarm = timespec_normalise(alarm);
 		} else {
 			alarm.tv_sec = now.tv_sec + 1;
 			alarm.tv_nsec = now.tv_nsec;
