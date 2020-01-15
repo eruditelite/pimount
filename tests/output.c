@@ -64,7 +64,7 @@ handler(__attribute__((unused)) int signal)
 
 static int
 drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
-      unsigned long long width, unsigned long long _delay, unsigned steps)
+      unsigned widthin, unsigned delayin, unsigned steps)
 {
 	int rc;
 	struct a4988 driver;
@@ -99,10 +99,10 @@ drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
 	}
 
 	period.tv_sec = 0;
-	period.tv_nsec = (width * 1000) + (_delay * 1000);
+	period.tv_nsec = (widthin * 1000) + (delayin * 1000);
 	period = timespec_normalise(period);
 	delay.tv_sec = 0;
-	delay.tv_nsec = (_delay * 1000);
+	delay.tv_nsec = (delayin * 1000);
 	delay = timespec_normalise(delay);
 	sleep = delay;
 
@@ -126,7 +126,7 @@ drive(int pins[], enum a4988_res resolution, enum a4988_dir direction,
 			ai = 0;
 		}
 
-		rc = a4988_step(&driver, width);
+		rc = a4988_step(&driver, widthin);
 
 		if (0 != rc) {
 			printf("a4988_step() failed!\n");
@@ -174,9 +174,9 @@ main(int argc, char *argv[])
 	int resolution = -1;
 	int direction = -1;
 	int width_given = 0;
-	unsigned long long width;
+	unsigned width = 0;
 	int delay_given = 0;
-	unsigned long long delay;
+	unsigned delay = 0;
 	int steps = -1;
 
 	static struct option long_options[] = {
@@ -235,11 +235,11 @@ main(int argc, char *argv[])
 			break;
 		case 'w':
 			width_given = 1;
-			width = strtoull(optarg, NULL, 0);
+			width = strtoul(optarg, NULL, 0);
 			break;
 		case 'e':
 			delay_given = 1;
-			delay = strtoull(optarg, NULL, 0);
+			delay = strtoul(optarg, NULL, 0);
 			break;
 		case 's':
 			steps = atoi(optarg);
