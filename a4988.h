@@ -65,7 +65,7 @@ enum a4988_res {
 	A4988_RES_EIGHTH
 };
 
-static inline const char *
+__attribute__ ((unused)) static const char *
 a4988_res_names(enum a4988_res resolution)
 {
 	switch (resolution) {
@@ -77,14 +77,14 @@ a4988_res_names(enum a4988_res resolution)
 	}
 
 	return "BAD RESOLUTION";
-};
+}
 
 enum a4988_dir {
 	A4988_DIR_CW,
 	A4988_DIR_CCW
 };
 
-static inline const char *
+__attribute__ ((unused)) static const char *
 a4988_dir_names(enum a4988_dir direction)
 {
 	switch (direction) {

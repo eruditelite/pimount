@@ -42,7 +42,7 @@ get_temp(void)
   fan_cleanup
 */
 
-void
+static void
 fan_cleanup(void *input)
 {	
 	int rc;

@@ -2,8 +2,8 @@
   a4988.c
 */
 
-#include <stdio.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <time.h>
 
 #include <pigpio.h>

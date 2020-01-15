@@ -1,8 +1,4 @@
-ifdef DEBUG_BUILD
-CFLAGS = -Wall -Wextra -g
-else
-CFLAGS = -Wall -Wextra -O2
-endif
+include ../flags.mk
 
 LIBS = -lpigpio -lrt
 

@@ -127,7 +127,7 @@ pins_isr(unsigned pin, unsigned edge, int timeout, gpioISRFunc_t func)
 
 	if (0 > rc)
 		fprintf(stderr, "gpioSetISRFunc(%u,%u,%d, %p) failed: %s\n",
-			pin, edge, timeout, func, cmdErrStr(rc));
+			pin, edge, timeout, (void *)(size_t)func, cmdErrStr(rc));
 
 	return rc;
 }
