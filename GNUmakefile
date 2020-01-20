@@ -32,4 +32,4 @@ timespec.o: timespec.c timespec.h
 
 clean:
 	make -C tests clean
-	rm -f *~ *.o cscope* pimount
+	rm -f *~ *.o cscope* pimount cscope.*
