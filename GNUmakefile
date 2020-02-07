@@ -4,13 +4,11 @@ LIBS = -lpigpio -lrt -lpthread
 
 all: pimount
 	make -C tests all
+	make -C indi all
 
 cscope:
 	ls *.c *.h >cscope.files
 	cscope -b
-
-tests:
-	make -C tests
 
 pimount: main.c a4988.o pins.o fan.o control.o timespec.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
@@ -32,4 +30,5 @@ timespec.o: timespec.c timespec.h
 
 clean:
 	make -C tests clean
+	make -C indi clean
 	rm -f *~ *.o cscope* pimount cscope.*
