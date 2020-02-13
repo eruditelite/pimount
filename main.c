@@ -315,7 +315,7 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 static void
 usage(int exit_code)
 {
-	printf("pimount <button pins> <ra pins> <da pins> <fan pin>\n" \
+	printf("pimount <button pins> <ra pins> <da pins> <fan pin> <control port>\n" \
 	       "<button pins> : A ':' separated list of gpio pins (5)\n" \
 	       "         pin connected to +dec\n" \
 	       "         pin connected to -dec\n" \
@@ -328,7 +328,8 @@ usage(int exit_code)
 	       "         pin connected to sleep\n" \
 	       "         pin connected to ms2\n" \
 	       "         pin connected to ms1\n" \
-	       "<fan pin> : A pin to control the cooling fan\n");
+	       "<fan pin> : A pin to control the cooling fan\n" \
+	       "<control port>: The control server port\n");
 
 	exit(exit_code);
 }
@@ -349,6 +350,7 @@ main(int argc, char *argv[])
 	unsigned j;
 	int pins[3][5];
 	int fan_pin;
+	int control_port;
 	struct fan_params fan_input;
 	struct control_input control_parameters;
 
@@ -370,8 +372,9 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (4 != (argc - optind)) {
-		fprintf(stderr, "GPIO Pins Must Be Specified\n");
+	if (5 != (argc - optind)) {
+		fprintf(stderr,
+			"GPIO Pins and Control Port Must Be Specified\n");
 		usage(EXIT_FAILURE);
 	}
 
@@ -394,6 +397,10 @@ main(int argc, char *argv[])
 			}
 		}
 	}
+
+	fan_pin = atoi(argv[optind++]);
+
+	control_port = atoi(argv[optind++]);
 
 	/*
 	  Initialize pigpio
@@ -419,8 +426,6 @@ main(int argc, char *argv[])
 	/*
 	  Start the Fan Thread
 	*/
-
-	fan_pin = atoi(argv[optind++]);
 
 	fan_input.pin = fan_pin;
 	fan_input.bias = 200000;
@@ -528,7 +533,7 @@ main(int argc, char *argv[])
 	  Start the Control Thread
 	*/
 
-	control_parameters.port = 8888;
+	control_parameters.port = control_port;
 
 	rc = pthread_create(&control_thread, NULL,
 			    control, (void *)&control_parameters);

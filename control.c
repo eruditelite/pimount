@@ -38,21 +38,39 @@ control(void *input)
 	parameters = (struct control_input *)input;
 
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if (-1 == listenfd) {
+		fprintf(stderr, "socket() failed: %s\n", strerror(errno));
+		pthread_exit(NULL);
+	}
+
 	memset(&serv_addr, '0', sizeof(serv_addr));
-	memset(sendBuff, '0', sizeof(sendBuff)); 
+	memset(sendBuff, '0', sizeof(sendBuff));
 
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	serv_addr.sin_port = htons(parameters->port);
 
-	bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)); 
+	if (-1 == bind(listenfd,
+		       (struct sockaddr*)&serv_addr, sizeof(serv_addr))) {
+		fprintf(stderr, "bind() failed: %s\n", strerror(errno));
+		pthread_exit(NULL);
+	}
 
-	listen(listenfd, 10); 
+	if (-1 == listen(listenfd, 10)) {
+		fprintf(stderr, "listen() failed: %s\n", strerror(errno));
+		pthread_exit(NULL);
+	}
 
 	for (;;) {
 		int bytes_read;
 
 		connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+
+		if (-1 == connfd) {
+			fprintf(stderr, "listen() failed: %s\n", strerror(errno));
+			pthread_exit(NULL);
+		}
 
 		for (;;) {
 			pthread_testcancel();
@@ -82,8 +100,9 @@ control(void *input)
 				break;
 			}
 		}
+
+		close(connfd);
 	}
 
-	close(connfd);
 	pthread_exit(NULL);
 }
