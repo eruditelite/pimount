@@ -34,6 +34,8 @@ control(void *input)
 	struct control_message message;
 	time_t epoch;
 	struct tm *now;
+	pthread_t this;
+	struct sched_param params;
 
 	parameters = (struct control_input *)input;
 
@@ -61,6 +63,13 @@ control(void *input)
 		fprintf(stderr, "listen() failed: %s\n", strerror(errno));
 		pthread_exit(NULL);
 	}
+
+	/* Run at a High Priority -- Higher than the Control Thread */
+	this = pthread_self();
+	params.sched_priority = 50;
+
+	if (0 != pthread_setschedparam(this, SCHED_RR, &params))
+		fprintf(stderr, "pthread_setschedparam() failed!\n");
 
 	for (;;) {
 		int bytes_read;

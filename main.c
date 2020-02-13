@@ -15,6 +15,8 @@
   avaialble on pin 18 on all Pi models.
 */
 
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,6 +132,8 @@ stepper(void *input)
 	struct timespec sleep;
 	struct timespec m[2];
 	int mi;
+	pthread_t this;
+	struct sched_param params;
 
 	motion = (struct motion *)input;
 	pthread_mutex_lock(&motion->mutex);
@@ -143,6 +147,13 @@ stepper(void *input)
 	period = timespec_normalise(period);
 	sleep.tv_nsec = (speed->delay * 1000);
 	sleep = timespec_normalise(sleep);
+
+	/* Run at a High Priority -- Higher than the Control Thread */
+	this = pthread_self();
+	params.sched_priority = 75;
+
+	if (0 != pthread_setschedparam(this, SCHED_RR, &params))
+		fprintf(stderr, "pthread_setschedparam() failed!\n");
 
 	/* First run... */
 	if (1 == speed->state)
@@ -440,6 +451,11 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	rc = pthread_setname_np(fan_thread, "pimount.fan");
+
+	if (0 != rc)
+		fprintf(stderr, "pthread_setname_np() failed: %d\n", rc);
+
 	/*
 	  Initialize the Stepper Motor Drivers
 	*/
@@ -475,6 +491,12 @@ main(int argc, char *argv[])
 
 			return EXIT_FAILURE;
 		}
+
+		rc = pthread_setname_np(ra_thread, "pimount.ra");
+
+		if (0 != rc)
+			fprintf(stderr,
+				"pthread_setname_np() failed: %d\n", rc);
 	}
 
 	pthread_mutex_unlock(&ra.mutex);
@@ -507,6 +529,12 @@ main(int argc, char *argv[])
 
 			return EXIT_FAILURE;
 		}
+
+		rc = pthread_setname_np(dec_thread, "pimount.dec");
+
+		if (0 != rc)
+			fprintf(stderr,
+				"pthread_setname_np() failed: %d\n", rc);
 	}
 
 	pthread_mutex_unlock(&dec.mutex);
@@ -543,6 +571,11 @@ main(int argc, char *argv[])
 
 		return EXIT_FAILURE;
 	}
+
+	rc = pthread_setname_np(control_thread, "pimount.control");
+
+	if (0 != rc)
+		fprintf(stderr, "pthread_setname_np() failed: %d\n", rc);
 
 	pthread_join(control_thread, NULL);
 	pthread_join(fan_thread, NULL);
