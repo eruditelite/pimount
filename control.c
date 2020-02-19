@@ -36,6 +36,7 @@ control(void *input)
 	struct tm *now;
 	pthread_t this;
 	struct sched_param params;
+	socklen_t addr_len;
 
 	parameters = (struct control_input *)input;
 
@@ -50,7 +51,7 @@ control(void *input)
 	memset(sendBuff, '0', sizeof(sendBuff));
 
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_addr.sin_addr.s_addr = INADDR_ANY; /* All interfaces... */
 	serv_addr.sin_port = htons(parameters->port);
 
 	if (-1 == bind(listenfd,
@@ -58,6 +59,17 @@ control(void *input)
 		fprintf(stderr, "bind() failed: %s\n", strerror(errno));
 		pthread_exit(NULL);
 	}
+
+	addr_len = sizeof(serv_addr);
+
+	/* Display the port number. */
+	if (-1 ==
+	    getsockname(listenfd, (struct sockaddr *)&serv_addr, &addr_len)) {
+		fprintf(stderr, "getsockname() failed: %s\n", strerror(errno));
+		pthread_exit(NULL);
+	}
+
+	printf("Listening on port %d\n", ntohs(serv_addr.sin_port));
 
 	if (-1 == listen(listenfd, 10)) {
 		fprintf(stderr, "listen() failed: %s\n", strerror(errno));
