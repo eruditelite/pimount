@@ -67,6 +67,9 @@ private:
     double guiderEWTarget[2];
     double guiderNSTarget[2];
 
+    INumber ANewNumber[2];
+    INumberVectorProperty ANewNumberVector;
+
     INumber GuideRateN[2];
     INumberVectorProperty GuideRateNP;
 

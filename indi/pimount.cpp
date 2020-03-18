@@ -119,6 +119,10 @@ bool PiMount::initProperties()
                        IPS_IDLE);
 #endif
 
+    IUFillNumber(&ANewNumber[0], "name0: ", "label0: ", "%d", 0.0, 10.0, 0.01, 0.0);
+    IUFillNumber(&ANewNumber[1], "name1: ", "label1: ", "%d", 0.0, 10.0, 0.01, 0.0);
+    IUFillNumberVector(&ANewNumberVector, ANewNumber, 2, getDeviceName(), "A_NEW_NUMBER", "New Number", MOTION_TAB, IP_RW, 0, IPS_IDLE);
+
     /* How fast do we guide compared to sidereal rate */
     IUFillNumber(&GuideRateN[RA_AXIS], "GUIDE_RATE_WE", "W/E Rate", "%g", 0, 1, 0.1, 0.5);
     IUFillNumber(&GuideRateN[DEC_AXIS], "GUIDE_RATE_NS", "N/S Rate", "%g", 0, 1, 0.1, 0.5);
@@ -169,6 +173,8 @@ void PiMount::ISGetProperties(const char *dev)
 {
     /* First we let our parent populate */
     INDI::Telescope::ISGetProperties(dev);
+
+    defineNumber(&ANewNumberVector);
 
     /*
     if (isConnected())
@@ -249,6 +255,7 @@ bool PiMount::updateProperties()
         deleteProperty(PEErrNSSP.name);
         deleteProperty(PEErrWESP.name);
 #endif
+        deleteProperty(ANewNumberVector.name);
         deleteProperty(GuideRateNP.name);
     }
 
@@ -715,6 +722,14 @@ bool PiMount::ISNewNumber(const char *dev, const char *name, double values[], ch
             IDSetNumber(&GuideRateNP, nullptr);
             return true;
         }
+
+	if (strcmp(name, "A_NEW_NUMBER") == 0)
+	{
+	    IUUpdateNumber(&ANewNumberVector, values, names, n);
+	    ANewNumberVector.s = IPS_OK;
+	    IDSetNumber(&ANewNumberVector, nullptr);
+	    return true;
+	}
 
         if (strcmp(name, GuideNSNP.name) == 0 || strcmp(name, GuideWENP.name) == 0)
         {
