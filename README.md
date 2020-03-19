@@ -68,6 +68,16 @@ Allows basic control from any device with a web server.
 See https://github.com/Mjrovai/RPi-Flask-WebServer for an example
 setup. That's the skeleton.
 
+## INDI Driver ##
+
+The most straight-forward way to support guiding seems to be with an
+INDI driver.  Start with the 'drivers/telescope/telescope_simulator.*'
+files in INDI.
+
+### NOTES ###
+
+
+
 ## Post Mortems ##
 
 ### release_1.3 ###
