@@ -76,7 +76,14 @@ files in INDI.
 
 ### NOTES ###
 
-
+1. Use 'indiprop' to test.
+   * https://github.com/aaronevers/indiprop.git
+2. Adding things to the driver.
+   * Add private variables in indi/pimount.h.
+   * A *Vector* is required for the client to use the property.
+   * For a single thing (number, string, etc.) create an array with
+     one element, just creating a single element will NOT work
+     (INumber ANewNumber[1], not INumber ANewNumber).
 
 ## Post Mortems ##
 
