@@ -120,8 +120,7 @@ bool PiMount::initProperties()
 #endif
 
     IUFillNumber(&ANewNumber[0], "name0: ", "label0: ", "%d", 0.0, 10.0, 0.01, 0.0);
-    IUFillNumber(&ANewNumber[1], "name1: ", "label1: ", "%d", 0.0, 10.0, 0.01, 0.0);
-    IUFillNumberVector(&ANewNumberVector, ANewNumber, 2, getDeviceName(), "A_NEW_NUMBER", "New Number", MOTION_TAB, IP_RW, 0, IPS_IDLE);
+    IUFillNumberVector(&ANewNumberVector, ANewNumber, 1, getDeviceName(), "A_NEW_NUMBER", "New Number", MOTION_TAB, IP_RW, 0, IPS_IDLE);
 
     /* How fast do we guide compared to sidereal rate */
     IUFillNumber(&GuideRateN[RA_AXIS], "GUIDE_RATE_WE", "W/E Rate", "%g", 0, 1, 0.1, 0.5);
@@ -264,14 +263,17 @@ bool PiMount::updateProperties()
 
 bool PiMount::Connect()
 {
-    LOG_INFO("PiMount is online.");
-    SetTimer(POLLMS);
+    IDLog("%s:%s:%d - \n",
+	  __FILE__, __FUNCTION__, __LINE__);
+
     return true;
 }
 
 bool PiMount::Disconnect()
 {
-    LOG_INFO("PiMount is offline.");
+    IDLog("%s:%s:%d - \n",
+	  __FILE__, __FUNCTION__, __LINE__);
+
     return true;
 }
 
