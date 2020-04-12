@@ -10,7 +10,7 @@ cscope:
 	ls *.c *.h >cscope.files
 	cscope -b
 
-pimount: main.c a4988.o pins.o fan.o control.o timespec.o
+pimount: main.c a4988.o pins.o fan.o control.o timespec.o stepper.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 a4988.o: a4988.c a4988.h timespec.h
@@ -26,6 +26,9 @@ control.o: control.c control.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 timespec.o: timespec.c timespec.h
+	gcc $(CFLAGS) -c -o $@ $<
+
+stepper.o: stepper.c stepper.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:

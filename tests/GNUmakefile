@@ -1,8 +1,8 @@
 include ../flags.mk
 
-LIBS = -lpigpio -lrt
+LIBS = -lpigpio -lrt -lpthread
 
-all: control input output fan
+all: control input rate output fan
 
 control: control.o
 	gcc $(CFLAGS) -o $@ $^
@@ -20,6 +20,15 @@ input: input.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 input.o: input.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+rate: rate.o a4988.o pins.o timespec.o stepper.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+rate.o: rate.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+stepper.o: ../stepper.c ../stepper.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 output: output.o a4988.o pins.o timespec.o

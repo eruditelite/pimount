@@ -34,63 +34,14 @@
 #include "pins.h"
 #include "a4988.h"
 #include "timespec.h"
+#include "stepper.h"
 
 char *cmdErrStr(int);
 
-static pthread_t ra_thread;
-static pthread_t dec_thread;
-static pthread_t fan_thread;
-static pthread_t control_thread;
-
-struct speed {
-	int state;
-	enum a4988_res resolution;
-	enum a4988_dir direction;
-	unsigned width;		/* micro seconds */
-	unsigned delay;		/* micro seconds */
-};
-
-static struct speed ra_speeds[] = {
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 4000},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 10000},
-	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 500, 12000}, /* Earth's Rotation */
-	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},  /* Just stop... */
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 4000},
-};
-
-#define RA_SPEED_DEFAULT 4
-#define RA_SPEED_MAX 8
-
-static struct speed dec_speeds[] = {
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 4000},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
-	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},
-	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 0}, /* OFF */
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 100000},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
-	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 4000},
-};
-
-#define DEC_SPEED_DEFAULT 4
-#define DEC_SPEED_MAX 8
-
-struct motion {
-	pthread_mutex_t mutex;
-	pthread_cond_t cond;
-	struct a4988 driver;
-	struct speed *speed;
-	int current_speed;
-	int max_speed;
-};
-
-static struct motion ra;
-static struct motion dec;
+static struct speed ra_speed;
+static struct motion ra_motion;
+static struct speed dec_speed;
+static struct motion dec_motion;
 
 static unsigned pb_pins[5];
 
@@ -100,137 +51,10 @@ static unsigned pb_pins[5];
 #define PB_RIGHT (pb_pins[3])
 #define PB_OFF (pb_pins[4])
 
-/*
-  ------------------------------------------------------------------------------
-  stepper_cleanup
-*/
-
-static void
-stepper_cleanup(void *input)
-{
-	struct motion *motion;
-
-	motion = (struct motion *)input;
-	printf("%s:%d - Finalizing %s\n",
-	       __FILE__, __LINE__, motion->driver.description);
-	a4988_finalize(&(motion->driver));
-}
-
-/*
-  ------------------------------------------------------------------------------
-  stepper
-*/
-
-static void *
-stepper(void *input)
-{
-	struct motion *motion;
-	struct a4988 *driver;
-	struct speed *speed;
-	int current_speed;
-	struct timespec period;
-	struct timespec sleep;
-	struct timespec m[2];
-	int mi;
-	pthread_t this;
-	struct sched_param params;
-
-	motion = (struct motion *)input;
-	pthread_mutex_lock(&motion->mutex);
-	driver = &motion->driver;
-	speed = motion->speed;
-	current_speed = motion->current_speed;
-	speed += current_speed;
-	pthread_cleanup_push(stepper_cleanup, input);
-
- 	period.tv_nsec = (speed->width * 1000) + (speed->delay * 1000);
-	period = timespec_normalise(period);
-	sleep.tv_nsec = (speed->delay * 1000);
-	sleep = timespec_normalise(sleep);
-
-	/* Run at a High Priority -- Higher than the Control Thread */
-	this = pthread_self();
-	params.sched_priority = 75;
-
-	if (0 != pthread_setschedparam(this, SCHED_RR, &params))
-		fprintf(stderr, "pthread_setschedparam() failed!\n");
-
-	/* First run... */
-	if (1 == speed->state)
-		a4988_enable(driver, speed->resolution, speed->direction);
-
-	mi = 0;
-
-	for (;;) {
-		struct timespec now;
-		struct timespec alarm;
-		struct timespec offset;
-
-		/*
-		  See if Anything Changed, Update if Needed
-		*/
-		  
-		if (current_speed != motion->current_speed) {
-			printf("%s:%d - %s Update %d %d\n",
-			       __FILE__, __LINE__, driver->description,
-			       current_speed, motion->current_speed);
-			speed = motion->speed;
-			current_speed = motion->current_speed;
-			speed += current_speed;
-			a4988_disable(driver);
-
-			period.tv_nsec = (speed->width * 1000) +
-				(speed->delay * 1000);
-			period = timespec_normalise(period);
-			sleep.tv_nsec = (speed->delay * 1000);
-			sleep = timespec_normalise(sleep);
-
-			if (1 == speed->state)
-				a4988_enable(driver, speed->resolution,
-					     speed->direction);
-		}
-
-		pthread_testcancel();
-
-		/* POSIX will only work with CLOCK_REALTIME... */
-		clock_gettime(CLOCK_REALTIME, &now);
-
-		if (1 == speed->state) {
-			a4988_step(driver, speed->width);
-
-			/* but offset and sleep are just relative... */
-			clock_gettime(CLOCK_MONOTONIC, &m[mi++]);
-
-			if (2 == mi) {
-				offset = timespec_sub(m[1], m[0]);
-				offset = timespec_normalise(offset);
-
-				if (timespec_gt(period, offset)) {
-					offset = timespec_sub(period, offset);
-					sleep = timespec_add(sleep, offset);
-				} else {
-					offset = timespec_sub(offset, period);
-					sleep = timespec_sub(sleep, offset);
-				}
-
-				mi = 0;
-			}
-
-			/* calculate the time to wake up */
-			alarm = now;
-			alarm = timespec_add(alarm, sleep);
-			alarm = timespec_normalise(alarm);
-		} else {
-			alarm.tv_sec = now.tv_sec + 1;
-			alarm.tv_nsec = now.tv_nsec;
-		}
-
-		pthread_cond_timedwait(&motion->cond, &motion->mutex, &alarm);
-	}
-
-	pthread_cleanup_pop(1);
-	pthread_exit(NULL);
-}
+static pthread_t ra_thread;
+static pthread_t dec_thread;
+static pthread_t fan_thread;
+static pthread_t control_thread;
 
 /*
   ------------------------------------------------------------------------------
@@ -261,6 +85,7 @@ handler(__attribute__((unused)) int signal)
 static void
 pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 {
+	int rc;
 	static uint32_t last_tick;
 	int ra_change = 0;
 	int dec_change = 0;
@@ -274,10 +99,17 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 		*/
 
 		/* DEC off */
-		dec.current_speed = DEC_SPEED_DEFAULT;
+		dec_motion.speed->state = MOTION_STATE_OFF;
 
 		/* RA at Earth speed */
-		ra.current_speed = RA_SPEED_DEFAULT;
+		rc = stepper_set_rate(ra_motion.speed,
+				      MOTION_STATE_ON,
+				      MOTION_AXIS_RA,
+				      MOTION_DIR_NW,
+				      15.0);
+
+		if (EXIT_SUCCESS != rc)
+			fprintf(stderr, "stepper_set_rate() failed!\n");
 
 		ra_change = 1;
 		dec_change = 1;
@@ -286,13 +118,6 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 		  Increase or Decrease the DEC Motion
 		*/
 
-		if (PB_UP ==
-		    (unsigned)gpio && dec.current_speed < dec.max_speed)
-			++ dec.current_speed;
-		else if (PB_DOWN ==
-			 (unsigned)gpio && dec.current_speed > 0)
-			-- dec.current_speed;
-
 		dec_change = 1;
 	} else if ((unsigned)gpio == pb_pins[2] ||
 		   (unsigned)gpio == pb_pins[3]) {
@@ -300,20 +125,14 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 		  Increase or Decrease the DEC Motion
 		*/
 
-		if (PB_LEFT == (unsigned)gpio && ra.current_speed > 0)
-			-- ra.current_speed;
-		else if (PB_RIGHT ==
-			 (unsigned)gpio && ra.current_speed < ra.max_speed)
-			++ ra.current_speed;
-
 		ra_change = 1;
 	}
 
 	if (0 != ra_change)
-		pthread_cond_signal(&ra.cond);
+		pthread_cond_signal(&ra_motion.cond);
 
 	if (0 != dec_change)
-		pthread_cond_signal(&dec.cond);
+		pthread_cond_signal(&dec_motion.cond);
 
 	return;
 }
@@ -460,31 +279,41 @@ main(int argc, char *argv[])
 	  Initialize the Stepper Motor Drivers
 	*/
 
-	strcpy(ra.driver.description, "RA Driver");
-	ra.driver.direction = pins[1][0];
-	ra.driver.step = pins[1][1];
-	ra.driver.sleep = pins[1][2];
-	ra.driver.ms2 = pins[1][3];
-	ra.driver.ms1 = pins[1][4];
-	ra.speed = &ra_speeds[0];
-	ra.current_speed = RA_SPEED_DEFAULT;
-	ra.max_speed = RA_SPEED_MAX;
-	pthread_mutex_init(&ra.mutex, NULL);
-	pthread_mutex_lock(&ra.mutex);
-	pthread_cond_init(&ra.cond, NULL);
+	strcpy(ra_motion.driver.description, "RA Driver");
+	ra_motion.driver.direction = pins[1][0];
+	ra_motion.driver.step = pins[1][1];
+	ra_motion.driver.sleep = pins[1][2];
+	ra_motion.driver.ms2 = pins[1][3];
+	ra_motion.driver.ms1 = pins[1][4];
+	ra_motion.speed = &ra_speed;
+
+	if (EXIT_SUCCESS != stepper_set_rate(ra_motion.speed,
+					     MOTION_STATE_ON,
+					     MOTION_AXIS_RA,
+					     MOTION_DIR_NW,
+					     15.0)) {
+		fprintf(stderr, "stepper_set_speed() failed!\n");
+
+		return EXIT_FAILURE;
+	}
+
+	pthread_mutex_init(&ra_motion.mutex, NULL);
+	pthread_mutex_lock(&ra_motion.mutex);
+	pthread_cond_init(&ra_motion.cond, NULL);
 
 	printf("RA Pins: d/st/sl/2/1 = %d/%d/%d/%d/%d\n",
-	       ra.driver.direction, ra.driver.step, ra.driver.sleep,
-	       ra.driver.ms2, ra.driver.ms1);
+	       ra_motion.driver.direction, ra_motion.driver.step,
+	       ra_motion.driver.sleep, ra_motion.driver.ms2,
+	       ra_motion.driver.ms1);
 
-	if (0 != a4988_initialize(&(ra.driver))) {
+	if (0 != a4988_initialize(&(ra_motion.driver))) {
 		fprintf(stderr, "RA Initialization Failed!\n");
 		gpioTerminate();
 
 		return EXIT_FAILURE;
 	} else {
 		rc = pthread_create(&ra_thread, NULL, stepper,
-				    (void *)&ra);
+				    (void *)&ra_motion);
 
 		if (0 != rc) {
 			fprintf(stderr, "pthread_create() failed: %d\n", rc);
@@ -499,30 +328,39 @@ main(int argc, char *argv[])
 				"pthread_setname_np() failed: %d\n", rc);
 	}
 
-	pthread_mutex_unlock(&ra.mutex);
+	pthread_mutex_unlock(&ra_motion.mutex);
 
-	strcpy(dec.driver.description, "DEC Driver");
-	dec.driver.direction = pins[2][0];
-	dec.driver.step = pins[2][1];
-	dec.driver.sleep = pins[2][2];
-	dec.driver.ms2 = pins[2][3];
-	dec.driver.ms1 = pins[2][4];
-	dec.speed = &dec_speeds[0];
-	dec.current_speed = DEC_SPEED_DEFAULT;
-	dec.max_speed = DEC_SPEED_MAX;
-	pthread_mutex_init(&dec.mutex, NULL);
-	pthread_mutex_lock(&dec.mutex);
-	pthread_cond_init(&dec.cond, NULL);
+	strcpy(dec_motion.driver.description, "DEC Driver");
+	dec_motion.driver.direction = pins[2][0];
+	dec_motion.driver.step = pins[2][1];
+	dec_motion.driver.sleep = pins[2][2];
+	dec_motion.driver.ms2 = pins[2][3];
+	dec_motion.driver.ms1 = pins[2][4];
+	dec_motion.speed = &dec_speed;
 
-	if (0 != a4988_initialize(&(dec.driver))) {
+	if (EXIT_SUCCESS != stepper_set_rate(dec_motion.speed,
+					     MOTION_STATE_OFF,
+					     MOTION_AXIS_DEC,
+					     MOTION_DIR_NW,
+					     0.0)) {
+		fprintf(stderr, "stepper_set_speed() failed!\n");
+
+		return EXIT_FAILURE;
+	}
+
+	pthread_mutex_init(&dec_motion.mutex, NULL);
+	pthread_mutex_lock(&dec_motion.mutex);
+	pthread_cond_init(&dec_motion.cond, NULL);
+
+	if (0 != a4988_initialize(&(dec_motion.driver))) {
 		fprintf(stderr, "DEC Initialization Failed!\n");
-		a4988_finalize(&(ra.driver));
+		a4988_finalize(&(ra_motion.driver));
 		gpioTerminate();
 
 		return EXIT_FAILURE;
 	} else {
 		rc = pthread_create(&dec_thread, NULL, stepper,
-				    (void *)&dec);
+				    (void *)&dec_motion);
 
 		if (0 != rc) {
 			fprintf(stderr, "pthread_create() failed: %d\n", rc);
@@ -537,7 +375,7 @@ main(int argc, char *argv[])
 				"pthread_setname_np() failed: %d\n", rc);
 	}
 
-	pthread_mutex_unlock(&dec.mutex);
+	pthread_mutex_unlock(&dec_motion.mutex);
 
 	/*
 	  Set up the Push Buttons...
@@ -581,8 +419,8 @@ main(int argc, char *argv[])
 	pthread_join(fan_thread, NULL);
 	pthread_join(ra_thread, NULL);
 	pthread_join(dec_thread, NULL);
-	a4988_finalize(&(ra.driver));
-	a4988_finalize(&(dec.driver));
+	a4988_finalize(&(ra_motion.driver));
+	a4988_finalize(&(dec_motion.driver));
 	gpioTerminate();
 
 	pthread_exit(NULL);
