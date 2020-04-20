@@ -3,10 +3,10 @@
 
   == GPIO pins used...
 
-  buttons : 0:22:11:9:10
-  ra : 26:19:13:6:5
-  dec : 27:17:4:3:2
-  fan : 18
+  ra   : 26:19:13:6:5
+  dec  : 27:17:4:3:2
+  fan  : 18
+  port : 0
 
   The above are based on the current hardware design -- and most were
   chosen to make routing the board easier with one exception.  Since
@@ -24,8 +24,10 @@
 #include <getopt.h>
 #include <signal.h>
 #include <limits.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <arpa/inet.h>
+#include <linux/joystick.h>
 
 #include <pigpio.h>
 
@@ -43,17 +45,10 @@ static struct motion ra_motion;
 static struct speed dec_speed;
 static struct motion dec_motion;
 
-static unsigned pb_pins[5];
-
-#define PB_UP (pb_pins[0])
-#define PB_DOWN (pb_pins[1])
-#define PB_LEFT (pb_pins[2])
-#define PB_RIGHT (pb_pins[3])
-#define PB_OFF (pb_pins[4])
-
 static pthread_t ra_thread;
 static pthread_t dec_thread;
 static pthread_t fan_thread;
+static pthread_t controller_thread;
 static pthread_t control_thread;
 
 /*
@@ -66,75 +61,18 @@ handler(__attribute__((unused)) int signal)
 {
 	pthread_cancel(control_thread);
 	pthread_join(control_thread, NULL);
+	pthread_cancel(controller_thread);
+	pthread_join(controller_thread, NULL);
 	pthread_cancel(fan_thread);
 	pthread_join(fan_thread, NULL);
 	pthread_cancel(ra_thread);
 	pthread_join(ra_thread, NULL);
 	pthread_cancel(dec_thread);
 	pthread_join(dec_thread, NULL);
+
 	gpioTerminate();
 
 	pthread_exit(NULL);
-}
-
-/*
-  ------------------------------------------------------------------------------
-  pb_isr
-*/
-
-static void
-pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
-{
-	int rc;
-	static uint32_t last_tick;
-	int ra_change = 0;
-	int dec_change = 0;
-
-	if (100000 > (tick - last_tick))
-		return;
-
-	if (PB_OFF == (unsigned)gpio) {
-		/*
-		  Set to follow the Earth's rotation.
-		*/
-
-		/* DEC off */
-		dec_motion.speed->state = MOTION_STATE_OFF;
-
-		/* RA at Earth speed */
-		rc = stepper_set_rate(ra_motion.speed,
-				      MOTION_STATE_ON,
-				      MOTION_AXIS_RA,
-				      MOTION_DIR_NW,
-				      15.0);
-
-		if (EXIT_SUCCESS != rc)
-			fprintf(stderr, "stepper_set_rate() failed!\n");
-
-		ra_change = 1;
-		dec_change = 1;
-	} else if (PB_UP == (unsigned)gpio || PB_DOWN == (unsigned)gpio) {
-		/*
-		  Increase or Decrease the DEC Motion
-		*/
-
-		dec_change = 1;
-	} else if ((unsigned)gpio == pb_pins[2] ||
-		   (unsigned)gpio == pb_pins[3]) {
-		/*
-		  Increase or Decrease the DEC Motion
-		*/
-
-		ra_change = 1;
-	}
-
-	if (0 != ra_change)
-		pthread_cond_signal(&ra_motion.cond);
-
-	if (0 != dec_change)
-		pthread_cond_signal(&dec_motion.cond);
-
-	return;
 }
 
 /*
@@ -145,13 +83,8 @@ pb_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
 static void
 usage(int exit_code)
 {
-	printf("pimount <button pins> <ra pins> <da pins> <fan pin> <control port>\n" \
-	       "<button pins> : A ':' separated list of gpio pins (5)\n" \
-	       "         pin connected to +dec\n" \
-	       "         pin connected to -dec\n" \
-	       "         pin connected to +ra\n" \
-	       "         pin connected to -ra\n" \
-	       "         pin connected to stop\n" \
+	printf("pimount <joystick> <ra pins> <da pins> <fan pin> <control port>\n" \
+	       "<joystick> : The joystick device, default is /dev/input/js0\n" \
 	       "<ra|da pins> : A ':' separated list of the gpio pins (5)\n" \
 	       "         pin connected to direction\n" \
 	       "         pin connected to step\n" \
@@ -162,6 +95,111 @@ usage(int exit_code)
 	       "<control port>: The control server port\n");
 
 	exit(exit_code);
+}
+
+/*
+  ------------------------------------------------------------------------------
+  controller
+*/
+
+struct controller {
+	const char *joystick;
+	int joystick_fd;
+	struct speed *ra_speed;
+	struct speed *dec_speed;
+};
+
+static void
+controller_cleanup(void *input)
+{
+	struct controller *controller_input;
+
+	controller_input = (struct controller *)input;
+
+	if (-1 != controller_input->joystick_fd)
+		close(controller_input->joystick_fd);
+}
+
+void *
+controller(void *input)
+{
+	struct controller *controller_input;
+
+	controller_input = (struct controller *)input;
+
+	controller_input->joystick_fd = open(controller_input->joystick, O_RDONLY);
+
+	if (-1 == controller_input->joystick_fd) {
+		fprintf(stderr, "open(%s, O_RDONLY) failed: %s\n",
+			controller_input->joystick, strerror(errno));
+
+		pthread_exit(NULL);
+	}
+
+	pthread_cleanup_push(controller_cleanup, input);
+
+	for (;;) {
+		ssize_t bytes;
+		struct js_event event;
+
+		bytes = read(controller_input->joystick_fd, &event, sizeof(event));
+
+		if (bytes != sizeof(event)) {
+			/* Controller Unplugged... Or Some Such. */
+			fprintf(stderr, "Controller Disappeared!\n");
+			pthread_exit(NULL);
+		}
+
+		switch (event.type) {
+		case JS_EVENT_BUTTON:
+			if (0 == event.value) { /* Button pressed. */
+				switch (event.number) {
+				case 0:
+					printf("STOP!!!\n");
+					break;
+				case 1:
+					printf("TRACK!!!\n");
+					break;
+				default:
+					/* Ignore other buttons. */
+					break;
+				}
+			}
+			break;
+		case JS_EVENT_AXIS:
+			/* Local search. */
+			if (0 != (event.number / 2))
+				break;
+
+			if (0 == event.number % 2) {
+				/* X */
+				if (16000 < event.value)
+					printf("RA West ++\n");
+				else if (-16000 > event.value)
+					printf("RA East ++\n");
+				else
+					break;
+			} else {
+				/* Y */
+				if (16000 < event.value)
+					printf("DEC South ++\n");
+				else if (-16000 > event.value)
+					printf("DEC North ++\n");
+				else
+					break;
+			}
+			break;
+		default:
+			/* Ignore everything else. */
+			break;
+		}
+	}
+
+	if (-1 != controller_input->joystick_fd)
+		close(controller_input->joystick_fd);
+
+	pthread_cleanup_pop(1);
+	pthread_exit(NULL);
 }
 
 /*
@@ -178,11 +216,13 @@ main(int argc, char *argv[])
 	char *token;
 	unsigned i;
 	unsigned j;
-	int pins[3][5];
+	int pins[2][5];
 	int fan_pin;
 	int control_port;
 	struct fan_params fan_input;
 	struct control_input control_parameters;
+	struct controller controller_input;
+	char joystick[80];
 
 	static struct option long_options[] = {
 		{"help",       required_argument, 0,  'h' },
@@ -202,13 +242,15 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (5 != (argc - optind)) {
+	if (4 != (argc - optind)) {
 		fprintf(stderr,
 			"GPIO Pins and Control Port Must Be Specified\n");
 		usage(EXIT_FAILURE);
 	}
 
-	for (i = 0; i < 3; ++i) {
+	strcpy(joystick, argv[optind++]);
+
+	for (i = 0; i < 1; ++i) {
 		for (j = 0; j < (sizeof(pins[i]) / sizeof(int)); ++j)
 			pins[i][j] = -1;
 
@@ -280,11 +322,11 @@ main(int argc, char *argv[])
 	*/
 
 	strcpy(ra_motion.driver.description, "RA Driver");
-	ra_motion.driver.direction = pins[1][0];
-	ra_motion.driver.step = pins[1][1];
-	ra_motion.driver.sleep = pins[1][2];
-	ra_motion.driver.ms2 = pins[1][3];
-	ra_motion.driver.ms1 = pins[1][4];
+	ra_motion.driver.direction = pins[0][0];
+	ra_motion.driver.step = pins[0][1];
+	ra_motion.driver.sleep = pins[0][2];
+	ra_motion.driver.ms2 = pins[0][3];
+	ra_motion.driver.ms1 = pins[0][4];
 	ra_motion.speed = &ra_speed;
 
 	if (EXIT_SUCCESS != stepper_set_rate(ra_motion.speed,
@@ -331,11 +373,11 @@ main(int argc, char *argv[])
 	pthread_mutex_unlock(&ra_motion.mutex);
 
 	strcpy(dec_motion.driver.description, "DEC Driver");
-	dec_motion.driver.direction = pins[2][0];
-	dec_motion.driver.step = pins[2][1];
-	dec_motion.driver.sleep = pins[2][2];
-	dec_motion.driver.ms2 = pins[2][3];
-	dec_motion.driver.ms1 = pins[2][4];
+	dec_motion.driver.direction = pins[1][0];
+	dec_motion.driver.step = pins[1][1];
+	dec_motion.driver.sleep = pins[1][2];
+	dec_motion.driver.ms2 = pins[1][3];
+	dec_motion.driver.ms1 = pins[1][4];
 	dec_motion.speed = &dec_speed;
 
 	if (EXIT_SUCCESS != stepper_set_rate(dec_motion.speed,
@@ -378,21 +420,20 @@ main(int argc, char *argv[])
 	pthread_mutex_unlock(&dec_motion.mutex);
 
 	/*
-	  Set up the Push Buttons...
+	  Set up the USB Controller
 	*/
 
-	for (i = 0; i < (sizeof(pins[0]) / sizeof(int)); ++i) {
-		rc = pins_set_mode(pins[0][i], PI_INPUT);
-		rc |= pins_set_pull_up_down(pins[0][i], PI_PUD_UP);
-		rc |= pins_isr(pins[0][i], FALLING_EDGE, 0, pb_isr);
+	strcpy(controller_input.joystick, joystick);
+	controller_input.ra_speed = &ra_speed;
+	controller_input.dec_speed = &dec_speed;
 
-		if (0 > rc) {
-			fprintf(stderr, "Push Button Setup Failed!\n");
+	rc = pthread_create(&controller_thread, NULL, controller,
+			    (void *)&controller_input);
 
-			return EXIT_FAILURE;
-		}
+	if (0 != rc) {
+		fprintf(stderr, "pthread_create() failed: %d\n", rc);
 
-		pb_pins[i] = pins[0][i];
+		return EXIT_FAILURE;
 	}
 
 	/*
@@ -416,6 +457,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "pthread_setname_np() failed: %d\n", rc);
 
 	pthread_join(control_thread, NULL);
+	pthread_join(controller_thread, NULL);
 	pthread_join(fan_thread, NULL);
 	pthread_join(ra_thread, NULL);
 	pthread_join(dec_thread, NULL);

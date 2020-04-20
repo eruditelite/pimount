@@ -47,4 +47,4 @@ timespec.o: ../timespec.c ../timespec.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *~ *.o fan control input output
+	rm -f *~ *.o fan control input input_usb output

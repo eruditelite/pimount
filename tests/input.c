@@ -1,7 +1,11 @@
 /*
   input.c
 
-  Test the button inputs.
+  See https://www.kernel.org/doc/Documentation/input/joystick-api.txt.
+
+  Use Axis 0 to handle local searches.
+  Use Button 0 to stop everything (what INDI calls Park?).
+  Use Button 1 to start tracking.
 */
 
 #include <stdio.h>
@@ -9,24 +13,28 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <string.h>
+#include <errno.h>
+#include <linux/joystick.h>
 
-#include <pigpio.h>
+static int js_fd = -1;
+static char *js_name = "/dev/input/js0";
 
-#include "../pins.h"
+/*
+  ------------------------------------------------------------------------------
+  clean_up
+*/
 
-#define XA  9
-#define XB 11
-#define YA 12
-#define YB 22
-#define  Z 10
+static void
+clean_up(void)
+{
+	printf("Shutting Down Input USB Test...\n");
 
-char *cmdErrStr(int);
-
-static int xa_count = 0;
-static int xb_count = 0;
-static int ya_count = 0;
-static int yb_count = 0;
-static int  z_count = 0;
+	if (-1 != js_fd)
+		close(js_fd);
+}
 
 /*
   ------------------------------------------------------------------------------
@@ -36,94 +44,50 @@ static int  z_count = 0;
 static void
 handler(__attribute__((unused)) int signal)
 {
-	printf("Shutting down...\n");
-	gpioTerminate();
-
+	clean_up();
 	exit(EXIT_SUCCESS);
 }
 
 /*
   ------------------------------------------------------------------------------
-  pin_isr
-*/
-
-static void
-pin_isr(int gpio, __attribute__((unused)) int level, uint32_t tick)
-{
-	static uint32_t last_tick;
-
-	if (100000 > (tick - last_tick))
-		return;
-
-	switch (gpio) {
-	case XA:
-		printf("Xa Pressed\n");
-		++xa_count;
-		break;
-	case XB:
-		printf("Xb Pressed\n");
-		++xb_count;
-		break;
-	case YA:
-		printf("Ya Pressed\n");
-		++ya_count;
-		break;
- 	case YB:
-		printf("Yb Pressed\n");
-		++yb_count;
-		break;
- 	case Z:
-		printf("Z Pressed\n");
-		++z_count;
-		break;
-	default:
-		break;
-	}
-
-	last_tick = tick;
-
-	return;
-}
-
-/*
-  ------------------------------------------------------------------------------
-  setup_pin
+  print_identity
 */
 
 static int
-setup_pin(int gpio)
+print_identity(int fd)
 {
-	int rc;
+	/* As linux/joystick.h doesn't limit the size... */
+	char id_string[128];
+	int version = -1;
+	char buttons = -1;
+	char axes = -1;
 
-	rc = gpioSetMode(gpio, PI_INPUT);
-
-	if (0 != rc) {
-		fprintf(stderr, "gpioSetMode() failed: %s\n",
-			cmdErrStr(rc));
-		gpioTerminate();
-
-		return EXIT_FAILURE;
-	}
-
-	rc = gpioSetPullUpDown(gpio, PI_PUD_UP);
-
-	if (0 != rc) {
-		fprintf(stderr, "gpioSetPullUpDown() failed: %s\n",
-			cmdErrStr(rc));
-		gpioTerminate();
+	if (-1 == ioctl(fd, JSIOCGNAME(sizeof(id_string)), id_string)) {
+		fprintf(stderr, "ioctl() failed: %s\n", strerror(errno));
 
 		return EXIT_FAILURE;
 	}
 
-	rc = gpioSetISRFunc(gpio, FALLING_EDGE, 0, pin_isr);
-
-	if (0 != rc) {
-		fprintf(stderr, "gpioSetISRFunc() failed: %s\n",
-			cmdErrStr(rc));
-		gpioTerminate();
+	if (-1 == ioctl(fd, JSIOCGVERSION, &version)) {
+		fprintf(stderr, "ioctl() failed: %s\n", strerror(errno));
 
 		return EXIT_FAILURE;
 	}
+
+	if (-1 == ioctl(fd, JSIOCGBUTTONS, &buttons)) {
+		fprintf(stderr, "ioctl() failed: %s\n", strerror(errno));
+
+		return EXIT_FAILURE;
+	}
+
+	if (-1 == ioctl(fd, JSIOCGAXES, &axes)) {
+		fprintf(stderr, "ioctl() failed: %s\n", strerror(errno));
+
+		return EXIT_FAILURE;
+	}
+
+	printf("%s\nVersion: 0x%x\n%d Buttons, %d Axes\n",
+	       id_string, version, buttons, axes);
 
 	return EXIT_SUCCESS;
 }
@@ -136,22 +100,23 @@ setup_pin(int gpio)
 int
 main(__attribute__((unused)) int argc, __attribute__((unused)) char *argv[])
 {
-	int rc;
+	int which;
+	int axis;
 
-	/*
-	  Initialize
-	*/
+	js_fd = open(js_name, O_RDONLY);
 
-	rc = gpioInitialise();
-
-	if (PI_INIT_FAILED == rc) {
-		fprintf(stderr, "gpioinitialise() failed: %s\n", cmdErrStr(rc));
+	if (-1 == js_fd) {
+		fprintf(stderr, "open(%s, O_RDONLY) failed: %s\n",
+			js_name, strerror(errno));
 
 		return EXIT_FAILURE;
 	}
 
+	printf("Using %s\n", js_name);
+	print_identity(js_fd);
+
 	/*
-	  Catch Signals -- handler Will Finalize pigpio
+	  Catch Signals
 	*/
 
 	signal(SIGHUP, handler);
@@ -159,26 +124,57 @@ main(__attribute__((unused)) int argc, __attribute__((unused)) char *argv[])
 	signal(SIGCONT, handler);
 	signal(SIGTERM, handler);
 
-	/*
-	  Set Up Pins
-	*/
+	for (;;) {
+		ssize_t bytes;
+		struct js_event event;
 
-	if (EXIT_SUCCESS != setup_pin(Z) ||
-	    EXIT_SUCCESS != setup_pin(XA) ||
-	    EXIT_SUCCESS != setup_pin(XB) ||
-	    EXIT_SUCCESS != setup_pin(YA) ||
-	    EXIT_SUCCESS != setup_pin(YB)) {
-		fprintf(stderr, "setup_pin() failed...\n");
+		bytes = read(js_fd, &event, sizeof(event));
 
-		return EXIT_FAILURE;
+		if (bytes != sizeof(event))
+			break;
+
+		switch (event.type) {
+		case JS_EVENT_BUTTON:
+			if (0 == event.value) {
+				if (0 == event.number)
+					printf("Stop Everything!!!\n");
+				else if (1 == event.number)
+					printf("Track...\n");
+			}
+			break;
+		case JS_EVENT_AXIS:
+			/*
+			  Which control on the controller (there may
+			  be more than one) can be determined by
+			  dividing the number by 2 since each control
+			  will have X and Y).
+			*/
+			which = (event.number / 2);
+			/*
+			  Which axis, x or y, can be found with number % 2.
+			*/
+			axis = (event.number % 2);
+
+			if (0 == which) {
+				if (0 == axis && event.value > 16000)
+					printf("RA West ++\n");
+				if (0 == axis && event.value < -16000)
+					printf("RA East ++\n");
+				if (1 == axis && event.value > 16000)
+					printf("DEC South ++\n");
+				if (1 == axis && event.value < -16000)
+					printf("DEC North ++\n");
+			}
+			break;
+		default:
+			/* Ignore init events. */
+			break;
+		}
+
+		fflush(stdout);
 	}
 
-	/*
-	  Sleep
-	*/
-
-	for (;;)
-		pause();
+	clean_up();
 
 	return EXIT_SUCCESS;
 }
