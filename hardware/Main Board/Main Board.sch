@@ -4,13 +4,13 @@ EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
-Sheet 1 2
+Sheet 1 1
 Title "pimount"
-Date "2019-07-10"
-Rev "1.2"
+Date "2020-04-22"
+Rev "1.3"
 Comp ""
 Comment1 "https://github.com/eruditelite/pimount.git"
-Comment2 "release_1.2"
+Comment2 "release_1.3"
 Comment3 ""
 Comment4 ""
 $EndDescr
@@ -128,8 +128,6 @@ Text Label 5850 3000 0    50   ~ 0
 GPIO11(SPI0_SCK)
 Text Label 5850 2900 0    50   ~ 0
 GPIO9(SPI0_MISO)
-Text Label 5850 2800 0    50   ~ 0
-GPIO10(SPI0_MOSI)
 Text Label 5850 2600 0    50   ~ 0
 GPIO22(GEN3)
 Text Label 5850 2500 0    50   ~ 0
@@ -142,8 +140,6 @@ Text Label 5850 2100 0    50   ~ 0
 GPIO3(SCL1)
 Text Label 5850 2000 0    50   ~ 0
 GPIO2(SDA1)
-Wire Wire Line
-	7500 3400 7650 3400
 Wire Wire Line
 	7500 2700 8550 2700
 Wire Wire Line
@@ -346,122 +342,14 @@ NoConn ~ 7500 2700
 NoConn ~ 7500 2600
 NoConn ~ 7500 2200
 NoConn ~ 7500 2300
-NoConn ~ 7500 2400
 NoConn ~ 7500 3400
 NoConn ~ 5250 1900
 NoConn ~ 5250 2200
 NoConn ~ 5250 3200
 NoConn ~ 5250 3500
-$Sheet
-S 4750 5700 850  800 
-U 5C9A8F22
-F0 "Joystick Input" 50
-F1 "Joystick Input.sch" 50
-F2 "5V" I L 4750 5850 50 
-F3 "GND" I L 4750 6350 50 
-F4 "3.3V" I L 4750 6100 50 
-F5 "Z" O R 5600 5850 50 
-F6 "Xa" O R 5600 6300 50 
-F7 "Xb" O R 5600 6400 50 
-F8 "Ya" O R 5600 6150 50 
-F9 "Yb" O R 5600 6050 50 
-$EndSheet
-Wire Wire Line
-	4750 6350 4450 6350
-Wire Wire Line
-	4450 6350 4450 6700
-$Comp
-L power:GND #PWR07
-U 1 1 5C9C2D75
-P 4450 6700
-F 0 "#PWR07" H 4450 6450 50  0001 C CNN
-F 1 "GND" H 4455 6527 50  0000 C CNN
-F 2 "" H 4450 6700 50  0001 C CNN
-F 3 "" H 4450 6700 50  0001 C CNN
-	1    4450 6700
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4750 5850 4450 5850
-Wire Wire Line
-	4450 5850 4450 5450
-$Comp
-L power:+5V #PWR06
-U 1 1 5C9C5B5C
-P 4450 5450
-F 0 "#PWR06" H 4450 5300 50  0001 C CNN
-F 1 "+5V" H 4465 5623 50  0000 C CNN
-F 2 "" H 4450 5450 50  0001 C CNN
-F 3 "" H 4450 5450 50  0001 C CNN
-	1    4450 5450
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4750 6100 4150 6100
-Wire Wire Line
-	4150 6100 4150 5450
-$Comp
-L power:+3.3V #PWR03
-U 1 1 5C9C97CF
-P 4150 5450
-F 0 "#PWR03" H 4150 5300 50  0001 C CNN
-F 1 "+3.3V" H 4165 5623 50  0000 C CNN
-F 2 "" H 4150 5450 50  0001 C CNN
-F 3 "" H 4150 5450 50  0001 C CNN
-	1    4150 5450
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	3650 2800 3650 5150
-Wire Wire Line
-	3650 5150 5750 5150
-Wire Wire Line
-	5750 5150 5750 5850
-Wire Wire Line
-	5750 5850 5600 5850
-Wire Wire Line
-	3650 2800 7000 2800
-Wire Wire Line
-	7000 2900 3750 2900
-Wire Wire Line
-	3750 2900 3750 5050
-Wire Wire Line
-	3750 5050 5850 5050
-Wire Wire Line
-	5850 5050 5850 6050
-Wire Wire Line
-	5600 6050 5850 6050
-Wire Wire Line
-	3850 4950 5950 4950
-Wire Wire Line
-	5950 4950 5950 6150
-Wire Wire Line
-	5950 6150 5600 6150
-Wire Wire Line
-	3850 3000 7000 3000
-Wire Wire Line
-	3850 3000 3850 4950
 Wire Wire Line
 	7500 2900 8550 2900
-Wire Wire Line
-	5750 2600 5750 3050
-Wire Wire Line
-	5750 3050 3950 3050
-Wire Wire Line
-	3950 3050 3950 4850
-Wire Wire Line
-	3950 4850 6050 4850
-Wire Wire Line
-	6050 4850 6050 6300
-Wire Wire Line
-	6050 6300 5600 6300
-Wire Wire Line
-	5600 6400 6150 6400
-Wire Wire Line
-	6150 4750 6150 6400
 NoConn ~ 7500 2900
-Wire Wire Line
-	5750 2600 7000 2600
 Wire Wire Line
 	7000 3100 6900 3100
 Connection ~ 6900 3100
@@ -495,7 +383,7 @@ U 1 1 5CFE0810
 P 10850 5500
 F 0 "J3" H 10742 5175 50  0000 C CNN
 F 1 "Battery" H 10742 5266 50  0000 C CNN
-F 2 "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical" H 10850 5500 50  0001 C CNN
+F 2 "Connector_Phoenix_MC_HighVoltage:PhoenixContact_MCV_1,5_2-G-5.08_1x02_P5.08mm_Vertical" H 10850 5500 50  0001 C CNN
 F 3 "~" H 10850 5500 50  0001 C CNN
 	1    10850 5500
 	1    0    0    -1  
@@ -658,13 +546,6 @@ Wire Wire Line
 	5400 2300 5400 2400
 Wire Wire Line
 	5850 3200 7000 3200
-Wire Wire Line
-	7650 3400 7650 4750
-Wire Wire Line
-	7650 4750 6150 4750
-Connection ~ 7650 3400
-Wire Wire Line
-	7650 3400 8550 3400
 $Comp
 L power:+10V #PWR012
 U 1 1 5D25EF9D
@@ -777,4 +658,21 @@ Wire Wire Line
 	8800 1800 8800 2400
 Wire Wire Line
 	7500 2400 8800 2400
+Wire Wire Line
+	5850 2600 7000 2600
+Wire Wire Line
+	5850 2900 7000 2900
+Wire Wire Line
+	5850 3000 7000 3000
+Wire Wire Line
+	7500 3400 8550 3400
+Text Label 5850 2800 0    50   ~ 0
+GPIO10(SPI0_MOSI)
+Wire Wire Line
+	5850 2800 7000 2800
+NoConn ~ 7000 3200
+NoConn ~ 7000 3000
+NoConn ~ 7000 2900
+NoConn ~ 7000 2800
+NoConn ~ 7000 2600
 $EndSCHEMATC
