@@ -3,3 +3,4 @@ fan
 input
 output
 *.o
+*.log

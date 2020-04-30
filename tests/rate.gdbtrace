@@ -1,0 +1,15 @@
+# Trace the a4988 calls when running output with the following command.
+# sudo gdb -quiet -command=rate.gdbtrace ./rate >log
+
+set args -a ra -d 1000 -r 15
+
+rbreak ../a4988.c:.
+command
+silent
+backtrace 1
+continue
+end
+
+run
+
+quit

@@ -1,0 +1,15 @@
+# Trace the a4988 calls when running output with the following command.
+# sudo gdb -quiet -command=output.gdbtrace ./output >log
+
+set args -a ra -r half -d cw -w 20000 -e 20000 -s 10
+
+rbreak ../a4988.c:.
+command
+silent
+backtrace 1
+continue
+end
+
+run
+
+quit

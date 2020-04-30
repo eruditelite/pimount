@@ -14,28 +14,11 @@
 #include <pthread.h>
 #include <pigpiod_if2.h>
 
+#include "pimount.h"
+#include "stats.h"
 #include "fan.h"
 
 char *cmdErrStr(int);
-
-/*
-  ------------------------------------------------------------------------------
-  get_temp
-*/
-
-static int
-get_temp(void)
-{
-	FILE *thermal;
-	int temp;
-
-	thermal = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-	(void)fscanf(thermal, "%d", &temp);
-	fclose(thermal);
-	temp /= 1000;
-
-	return temp;
-}
 
 /*
   ------------------------------------------------------------------------------
@@ -43,14 +26,11 @@ get_temp(void)
 */
 
 static void
-fan_cleanup(void *input)
+fan_cleanup(__attribute__((unused)) void *input)
 {	
 	int rc;
-	struct fan_params *params;
 
-	params = (struct fan_params *)input;
-
-	rc = gpioHardwarePWM(params->pin, 100, 0);
+	rc = gpioHardwarePWM(FAN_PIN, 100, 0);
 
 	if (0 > rc)
 		fprintf(stderr, "gpioHardwarePWM() failed: %s\n",
@@ -102,7 +82,7 @@ fan(void *input)
 				params->bias;
 		}
 
-		rc = gpioHardwarePWM(params->pin, 100, duty);
+		rc = gpioHardwarePWM(FAN_PIN, 100, duty);
 
 		if (0 > rc)
 			fprintf(stderr, "hardware_PWM() failed: %s\n",

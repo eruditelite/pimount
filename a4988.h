@@ -1,5 +1,9 @@
 /*
+  ==============================================================================
+  ==============================================================================
+
   a4988.h
+
 
   Notes
   =====
@@ -8,6 +12,7 @@
   After calling a4988_enable(), current is flowing.  Calling
   a4988_disable() will put the controller in sleep mode (no current
   flowing).
+
 
   Design Decisions
   ================
@@ -23,12 +28,15 @@
 
   -3-
   The finalize function returns void. What would you do if it failed?
+
+  ==============================================================================
+  ==============================================================================
 */
 
 #ifndef _A4988_H_
 #define _A4988_H_
 
-#define DESCRIPTION_SIZE 80
+#define A4988_DESCRIPTION_SIZE 80
 
 struct a4988 {
 	/* 0 means sleep -- allow 1 ms before stepping after setting to 1. */
@@ -48,6 +56,9 @@ struct a4988 {
 	     Quater Step 0   1   0
 	     Eighth Step 1   1   0
 	  Sixteenth Step 1   1   1 (unused)
+
+	  Full and half step should have plenty of torque.  The
+	  others, not so much.
 	*/
 
 	unsigned ms1;
@@ -55,10 +66,11 @@ struct a4988 {
 
 	unsigned position;
 
-	char description[DESCRIPTION_SIZE];
+	char description[A4988_DESCRIPTION_SIZE];
 };
 
 enum a4988_res {
+	A4988_RES_INVALID = -1,
 	A4988_RES_FULL = 0,
 	A4988_RES_HALF,
 	A4988_RES_QUARTER,
@@ -69,6 +81,7 @@ __attribute__ ((unused)) static const char *
 a4988_res_names(enum a4988_res resolution)
 {
 	switch (resolution) {
+	case A4988_RES_INVALID: return "A4988_RES_INVALID"; break;
 	case A4988_RES_FULL: return "A4988_RES_FULL"; break;
 	case A4988_RES_HALF: return "A4988_RES_HALF"; break;
 	case A4988_RES_QUARTER: return "A4988_RES_QUARTER"; break;
@@ -80,7 +93,8 @@ a4988_res_names(enum a4988_res resolution)
 }
 
 enum a4988_dir {
-	A4988_DIR_CW,
+	A4988_DIR_INVALID = -1,
+	A4988_DIR_CW = 0,
 	A4988_DIR_CCW
 };
 
@@ -88,6 +102,7 @@ __attribute__ ((unused)) static const char *
 a4988_dir_names(enum a4988_dir direction)
 {
 	switch (direction) {
+	case A4988_DIR_INVALID: return "A4988_DIR_INVALID"; break;
 	case A4988_DIR_CW: return "A4988_DIR_CW"; break;
 	case A4988_DIR_CCW: return "A4988_DIR_CCW"; break;
 	default: break;

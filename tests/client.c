@@ -15,7 +15,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 
-#include "../control.h"
+#include "../server.h"
 
 /*
   ------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ main(int argc, char *argv[])
 	int sockfd = 0;
 	int n = 0;
 	struct sockaddr_in serv_addr;
-	struct control_message message;
+	struct server_message message;
 
 	if (argc != 3) {
 		fprintf(stderr, "Usage: %s <ip of server> <port>\n", argv[0]);
@@ -53,7 +53,7 @@ main(int argc, char *argv[])
 	}
 
 	/*
-	  Get the Time (CONTROL_GET_TIME)
+	  Get the Time (SERVER_GET_TIME)
 	*/
 
 	if (connect(sockfd,
@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
-	message.command = CONTROL_GET_TIME;
+	message.command = SERVER_GET_TIME;
 
 	if (-1 == send(sockfd, &message, sizeof(message), 0)) {
 		fprintf(stderr, "send() failed: %s\n", strerror(errno));
@@ -75,11 +75,11 @@ main(int argc, char *argv[])
 	}
 
 	/*
-	  Get the Status (CONTROL_GET_STATUS)
+	  Get the Status (SERVER_GET_STATUS)
 	*/
 
 #if 0
-	message.command = CONTROL_GET_STATUS;
+	message.command = SERVER_GET_STATUS;
 	send(sockfd, &message, sizeof(message), 0);
 	n = read(sockfd, &message, sizeof(message));
 

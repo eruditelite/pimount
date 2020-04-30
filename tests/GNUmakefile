@@ -1,13 +1,15 @@
+# Build the Debug Version of tests programs!
+DEBUG_BUILD = true
+
+# Common flags.
 include ../flags.mk
 
-LIBS = -lpigpio -lrt -lpthread
+all: fan input output threads rate client status
 
-all: control input rate output fan
+status: status.o oled.o stats.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
-control: control.o
-	gcc $(CFLAGS) -o $@ $^
-
-control.o: control.c
+status.o: status.c
 	gcc $(CFLAGS) -c -o $@ $<
 
 fan: fan.o
@@ -22,19 +24,37 @@ input: input.o
 input.o: input.c
 	gcc $(CFLAGS) -c -o $@ $<
 
+output: output.o a4988.o pins.o timespec.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+output.o: output.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+threads: threads.o stepper.o a4988.o pins.o timespec.o
+	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+threads.o: threads.c
+	gcc $(CFLAGS) -c -o $@ $<
+
 rate: rate.o a4988.o pins.o timespec.o stepper.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 rate.o: rate.c
 	gcc $(CFLAGS) -c -o $@ $<
 
-stepper.o: ../stepper.c ../stepper.h
+client: client.o
+	gcc $(CFLAGS) -o $@ $^
+
+client.o: client.c
 	gcc $(CFLAGS) -c -o $@ $<
 
-output: output.o a4988.o pins.o timespec.o
-	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+stats.o: ../stats.c ../stats.h
+	gcc $(CFLAGS) -c -o $@ $<
 
-output.o: output.c
+oled.o: ../oled.c ../oled.h
+	gcc $(CFLAGS) -c -o $@ $<
+
+stepper.o: ../stepper.c ../stepper.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 a4988.o: ../a4988.c ../a4988.h
@@ -47,4 +67,4 @@ timespec.o: ../timespec.c ../timespec.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *~ *.o fan control input input_usb output
+	rm -f *~ *.o fan input output threads rate client *.log

@@ -57,6 +57,21 @@ Others have modified the system as well. See, for example,
 Set the voltage (potentiometer to ground) to 125 mV.  Motor voltage
 should be 10 V.
 
+## Local OLED Display ##
+
+The plan is to use a white display with red film...
+
+The part is IZOKEE 0.96'' I2C IIC 12864 128X64 Pixel OLED LCD Display
+Shield Board Module SSD1306
+
+First unit test... The part is IZOKEE 0.96'' I2C IIC 12864 128X64
+Pixel OLED LCD Display
+
+"The original Pi" (not sure about this, but it seems correct) used
+i2c-0.  After that, i2c-1 is used (pins bcm2 and bcm3 instead of bcm0
+and bcm1).  Trying to use i2c-0 is fraught with difficulties.  Using
+i2c-1.
+
 ## Web User Interface ##
 
 ### Why ###

@@ -1,0 +1,29 @@
+# Trace the a4988 calls when running output with the following command.
+# sudo gdb -quiet -command=threads.gdbtrace ./threads >log
+
+set args -a ra -d pos -u 1000 -r 15 -n 3
+
+rbreak ../a4988.c:.
+command
+silent
+backtrace 1
+continue
+end
+
+rbreak ../stepper.c:.
+command
+silent
+backtrace 1
+continue
+end
+
+rbreak pthread_
+command
+silent
+backtrace 1
+continue
+end
+
+run
+
+quit

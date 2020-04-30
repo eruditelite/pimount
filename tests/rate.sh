@@ -2,11 +2,18 @@
 
 SCRIPTPATH="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 
-sudo "${SCRIPTPATH}/rate" -p 26:19:13:6:5 -a 0 -d 0 -r 15.0
+if [ "$1" = "trace" ]
+then
+    pushd "${SCRIPTPATH}" >/dev/null
+    sudo gdb -quiet -command=rate.gdbtrace ./rate >rate.log
+    popd >/dev/null
+else
+    sudo "${SCRIPTPATH}/rate" -a ra -d 2000 -r 15
+fi
 
 ## RA Tracking: Not Perfect but Close
 ##
 ## Update to match the old tracking (Moon on Jan 10 2020) after cleaning up
 ## the timing.
 ##
-#sudo "${SCRIPTPATH}/rate" -p 26:19:13:6:5 -a 0 -d 0 -r 15.0
+#sudo "${SCRIPTPATH}/rate" -a ra -d pos -u 0 -r 15

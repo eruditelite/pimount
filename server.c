@@ -1,5 +1,5 @@
 /*
-  control.c
+  server.c
 */
 
 #include <unistd.h>
@@ -16,29 +16,29 @@
 #include <sys/types.h>
 #include <time.h> 
 
-#include "control.h"
+#include "server.h"
 
 /*
   ------------------------------------------------------------------------------
-  control
+  server
 */
 
 void *
-control(void *input)
+server(void *input)
 {
-	struct control_input *parameters;
+	struct server_input *parameters;
 	int listenfd = 0;
 	int connfd = 0;
 	struct sockaddr_in serv_addr; 
 	char sendBuff[1025];
-	struct control_message message;
+	struct server_message message;
 	time_t epoch;
 	struct tm *now;
 	pthread_t this;
 	struct sched_param params;
 	socklen_t addr_len;
 
-	parameters = (struct control_input *)input;
+	parameters = (struct server_input *)input;
 
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -76,7 +76,7 @@ control(void *input)
 		pthread_exit(NULL);
 	}
 
-	/* Run at a High Priority -- Higher than the Control Thread */
+	/* Run at a High Priority -- Higher than the Server Thread */
 	this = pthread_self();
 	params.sched_priority = 50;
 
@@ -107,7 +107,7 @@ control(void *input)
 				break;
 
 			switch (message.command) {
-			case CONTROL_GET_TIME:
+			case SERVER_GET_TIME:
 				epoch = time(NULL);
 				now = localtime(&epoch);
 				memcpy(&message.body.time, now,

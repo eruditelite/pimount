@@ -1,13 +1,16 @@
 /*
+  ==============================================================================
   output.c
 
-  Test the output...
+  Test a4988.*.
+  ==============================================================================
 */
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include <signal.h>
 #include <limits.h>
@@ -15,10 +18,43 @@
 
 #include <pigpio.h>
 
+#include "../pimount.h"
 #include "../timespec.h"
 #include "../a4988.h"
 
-char *cmdErrStr(int);		/* For some reason, pigpio doesn't export this! */
+char *cmdErrStr(int); /* For some reason, pigpio doesn't export this! */
+
+#if 0
+static struct speed ra_speeds[] = {
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 4000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 10000},
+	{1, A4988_RES_EIGHTH, A4988_DIR_CW, 500, 12000}, /* Earth's Rotation */
+	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},  /* Just stop... */
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 4000},
+};
+
+#define RA_SPEED_DEFAULT 4
+#define RA_SPEED_MAX 8
+
+static struct speed dec_speeds[] = {
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 4000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CCW, 500, 10000},
+	{0, A4988_RES_HALF, A4988_DIR_CCW, 500, 0}, /* OFF */
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 100000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 8000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 6000},
+	{1, A4988_RES_HALF, A4988_DIR_CW, 500, 4000},
+};
+
+#define DEC_SPEED_DEFAULT 4
+#define DEC_SPEED_MAX 8
+#endif
 
 /*
   ------------------------------------------------------------------------------
@@ -28,18 +64,13 @@ char *cmdErrStr(int);		/* For some reason, pigpio doesn't export this! */
 static void
 usage(int exit_code)
 {
-	printf("output <pins> <resolution> <direction> <width> <delay> <steps>\n" \
-	       "<pins> : A ':' separated list of the gpio pins (5)\n" \
-	       "    pin connected to direction\n" \
-	       "    pin connected to step\n" \
-	       "    pin connected to sleep\n" \
-	       "    pin connected to ms2\n" \
-	       "    pin connected to ms1\n" \
-	       "<resolution> : 0:FULL, 1:HALF, 2:QUARTER, 3:EIGHTH\n" \
-	       "<direction> : 0:CW, 1:CCW\n" \
-	       "<width> : Width of the pulse in micro seconds\n" \
-	       "<delay> : Delay between pulses in micro seconds\n" \
-	       "<steps> : Number of steps, 0 means forever...\n");
+	printf("output \n"
+	       "--axis|-a, Axis to driver, ra|dec\n"
+	       "--resolution|-r, Stepper Resolution : full|half|quarter|eighth\n"
+	       "--direction|-d, Stepper Direction : cw|ccw\n"
+	       "--width|-w, Width of the pulse in micro seconds.\n"
+	       "--delay|-e, Delay between pulses in micro seconds.\n"
+	       "--steps|-s, Number of steps, 0 means forever...\n");
 
 	exit(exit_code);
 }
@@ -52,7 +83,7 @@ usage(int exit_code)
 static void
 handler(__attribute__((unused)) int signal)
 {
-	printf("--> Terminated...\n");
+	printf("--> Ouput Test Terminated...\n");
 	gpioTerminate();
 	exit(EXIT_FAILURE);
 }
@@ -168,11 +199,10 @@ main(int argc, char *argv[])
 	int rc;
 	int opt = 0;
 	int long_index = 0;
-	char *token;
 	unsigned i;
 	int pins[5];
-	int resolution = -1;
-	int direction = -1;
+	enum a4988_res resolution = A4988_RES_INVALID;
+	enum a4988_dir direction = A4988_DIR_INVALID;
 	int width_given = 0;
 	unsigned width = 0;
 	int delay_given = 0;
@@ -181,7 +211,7 @@ main(int argc, char *argv[])
 
 	static struct option long_options[] = {
 		{"help",       no_argument,       0,  'h' },
-		{"pins",       required_argument, 0,  'p' },
+		{"axis",       required_argument, 0,  'a' },
 		{"resolution", required_argument, 0,  'r' },
 		{"direction",  required_argument, 0,  'd' },
 		{"width",      required_argument, 0,  'w' },
@@ -190,46 +220,58 @@ main(int argc, char *argv[])
 		{0, 0, 0, 0}
 	};
 
-	for (i = 0; i < (sizeof(pins) / sizeof(int)); ++i)
-		pins[i] = -1;
-
-	while ((opt = getopt_long(argc, argv, "hp:r:d:w:e:s:", 
+	while ((opt = getopt_long(argc, argv, "ha:r:d:w:e:s:", 
 				  long_options, &long_index )) != -1) {
 		switch (opt) {
 		case 'h':
 			usage(EXIT_SUCCESS);
 			break;
-		case 'p':
-			token = strtok(optarg, ":");
-			i = 0;
-
-			while (NULL != token) {
-				pins[i++] = atoi(token);
-				token = strtok(NULL, ":");
+		case 'a':
+			if (0 == strncmp(optarg, "ra", strlen("ra"))) {
+				pins[0] = RA_PIN_DIRECTION;
+				pins[1] = RA_PIN_STEP;
+				pins[2] = RA_PIN_SLEEP;
+				pins[3] = RA_PIN_MS2;
+				pins[4] = RA_PIN_MS1;
+			} else if (0 == strncmp(optarg, "dec", strlen("dec"))) {
+				pins[0] = DEC_PIN_DIRECTION;
+				pins[1] = DEC_PIN_STEP;
+				pins[2] = DEC_PIN_SLEEP;
+				pins[3] = DEC_PIN_MS2;
+				pins[4] = DEC_PIN_MS1;
+			} else {
+				fprintf(stderr, "Invalid Axis!\n");
+				usage(EXIT_FAILURE);
 			}
 
 			break;
 		case 'r':
-			resolution = atoi(optarg);
-
-			if (A4988_RES_FULL != resolution &&
-			    A4988_RES_HALF != resolution &&
-			    A4988_RES_QUARTER != resolution &&
-			    A4988_RES_EIGHTH != resolution) {
-				printf("Bad Resolution: %d\n", resolution);
-
-				return EXIT_FAILURE;
+			if (0 == strncmp(optarg, "full",
+					 strlen("full"))) {
+				resolution = A4988_RES_FULL;
+			} else if (0 == strncmp(optarg, "half",
+						strlen("half"))) {
+				resolution = A4988_RES_HALF;
+			} else if (0 == strncmp(optarg, "quarter",
+						strlen("quarter"))) {
+				resolution = A4988_RES_QUARTER;
+			} else if (0 == strncmp(optarg, "eighth",
+						strlen("eighth"))) {
+				resolution = A4988_RES_EIGHTH;
+			} else {
+				fprintf(stderr, "Invalid Resolution!\n");
+				usage(EXIT_FAILURE);
 			}
 
 			break;
 		case 'd':
-			direction = atoi(optarg);
-	
-			if (A4988_DIR_CW != direction &&
-			    A4988_DIR_CCW != direction) {
-				printf("Bad Direction: %d\n", direction);
-
-				return EXIT_FAILURE;
+			if (0 == strncmp(optarg, "cw", strlen("cw"))) {
+				direction = A4988_DIR_CW;
+			} else if (0 == strncmp(optarg, "ccw", strlen("ccw"))) {
+				direction = A4988_DIR_CCW;
+			} else {
+				fprintf(stderr, "Invalid Direction!\n");
+				usage(EXIT_FAILURE);
 			}
 
 			break;
@@ -263,11 +305,9 @@ main(int argc, char *argv[])
 
 	/* Make Sure Other Arguments Got Set */
 
-	if (resolution == -1 ||
-	    direction == -1 ||
-	    !width_given ||
-	    !delay_given ||
-	    steps == -1)
+	if (resolution == A4988_RES_INVALID ||
+	    direction == A4988_DIR_INVALID ||
+	    !width_given || !delay_given || steps == -1)
 		usage(EXIT_SUCCESS);
 
 	/*

@@ -11,9 +11,6 @@
   fan speed will vary -- hopefully somewhat linearly -- between off
   and full speed.
 
-  Hardware PWM is used to control fan speed, so make sure the pin
-  selected supports hardware PWM on the Pi model used!
-
   'bias' sets the minimum duty cycle that spins the fan.  For the
   cheap fans I tried, this was around 200,000.  So, instead of the
   full range offered by pigpio (0...1,000,000), use bias...1,000,000
@@ -21,7 +18,6 @@
 */
 
 struct fan_params {
-	int pin;
 	int bias;
 	int high;
 	int low;

@@ -1,0 +1,13 @@
+# Trace calls when running pimount with the following command.
+# sudo gdb -quiet -command=pimount.gdbtrace ./pimount >pimount.log
+
+rbreak ./stepper.c:.
+command
+silent
+backtrace 1
+continue 
+end
+
+run
+
+quit
