@@ -49,46 +49,6 @@ struct pimount_state state = {
 	.dec_rate = 0.0
 };
 
-/* If a Lock Fails, Die Horribly */
-
-static inline void
-_lock(const char *file, int line)
-{
-	int rc;
-
-	rc = pthread_mutex_lock(&state.mutex);
-
-	if (rc) {
-		fprintf(stderr,
-			"%s:%d - pthread_mutex_lock() failed: %s\n",
-			file, line, strerror(rc));
-		exit(EXIT_FAILURE);
-	}
-
-	return;
-}
-
-#define lock() _lock(__FILE__, __LINE__);
-
-static inline void
-_unlock(const char *file, int line)
-{
-	int rc;
-
-	rc = pthread_mutex_unlock(&state.mutex);
-
-	if (rc) {
-		fprintf(stderr,
-			"%s:%d - pthread_mutex_unlock() failed: %s\n",
-			file, line, strerror(rc));
-		exit(EXIT_FAILURE);
-	}
-
-	return;
-}
-
-#define unlock() _unlock(__FILE__, __LINE__);
-
 /*
   ------------------------------------------------------------------------------
   handler
@@ -150,12 +110,12 @@ c_track(void)
 {
 	int rc;
 
-	lock();
+	lock(&state.mutex);
 
 	if (PIMOUNT_CONTROL_LOCAL == state.control &&
 	    15.0 == state.ra_rate &&
 	    0.0 == state.dec_rate) {
-		unlock();
+		unlock(&state.mutex);
 
 		return;
 	}
@@ -169,25 +129,25 @@ c_track(void)
 	rc = stepper_stop(STEPPER_AXIS_DEC);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
 	rc = stepper_stop(STEPPER_AXIS_RA);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
 	rc = stepper_start(STEPPER_AXIS_RA, state.ra_rate, 0);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
-	unlock();
+	unlock(&state.mutex);
 
 	return;
 }
@@ -197,12 +157,12 @@ c_stop(void)
 {
 	int rc;
 
-	lock();
+	lock(&state.mutex);
 
 	if (PIMOUNT_CONTROL_OFF == state.control &&
 	    0.0 == state.ra_rate &&
 	    0.0 == state.dec_rate) {
-		unlock();
+		unlock(&state.mutex);
 
 		return;
 	}
@@ -216,18 +176,18 @@ c_stop(void)
 	rc = stepper_stop(STEPPER_AXIS_DEC);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
 	rc = stepper_stop(STEPPER_AXIS_RA);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
-	unlock();
+	unlock(&state.mutex);
 
 	return;
 }
@@ -237,12 +197,12 @@ c_remote(void)
 {
 	int rc;
 
-	lock();
+	lock(&state.mutex);
 
 	if (PIMOUNT_CONTROL_REMOTE == state.control &&
 	    0.0 == state.ra_rate &&
 	    0.0 == state.dec_rate) {
-		unlock();
+		unlock(&state.mutex);
 
 		return;
 	}
@@ -256,18 +216,18 @@ c_remote(void)
 	rc = stepper_stop(STEPPER_AXIS_DEC);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
 	rc = stepper_stop(STEPPER_AXIS_RA);
 
 	if (rc) {
-		unlock();
+		unlock(&state.mutex);
 		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 	}
 
-	unlock();
+	unlock(&state.mutex);
 
 	return;
 }
@@ -275,7 +235,7 @@ c_remote(void)
 static void
 c_status(void)
 {
-	lock();
+	lock(&state.mutex);
 
 	printf("State: %s\n"
 	       "ra_rate: %.2f\n"
@@ -283,7 +243,7 @@ c_status(void)
 	       pimount_control_names(state.control),
 	       state.ra_rate, state.dec_rate);
 
-	unlock();
+	unlock(&state.mutex);
 
 	return;
 }
@@ -294,11 +254,11 @@ c_ra(bool positive)
 	int rc;
 	bool something_changed = false;
 
-	lock();
+	lock(&state.mutex);
 
 	if (PIMOUNT_CONTROL_LOCAL != state.control) {
 		fprintf(stderr, "Switch to Local Control First!\n");
-		unlock();
+		unlock(&state.mutex);
 
 		return;
 	}
@@ -337,7 +297,7 @@ c_ra(bool positive)
 		rc = stepper_stop(STEPPER_AXIS_RA);
 
 		if (rc) {
-			unlock();
+			unlock(&state.mutex);
 			fprintf(stderr,
 				"%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 		}
@@ -346,7 +306,7 @@ c_ra(bool positive)
 			rc = stepper_start(STEPPER_AXIS_RA, state.ra_rate, 0);
 
 			if (rc) {
-				unlock();
+				unlock(&state.mutex);
 				fprintf(stderr,
 					"%s:%d - rc=%d\n",
 					__FILE__, __LINE__, rc);
@@ -354,7 +314,7 @@ c_ra(bool positive)
 		}
 	}
 
-	unlock();
+	unlock(&state.mutex);
 
 	return;
 }
@@ -365,11 +325,11 @@ c_dec(bool positive)
 	int rc;
 	bool something_changed = false;
 
-	lock();
+	lock(&state.mutex);
 
 	if (PIMOUNT_CONTROL_LOCAL != state.control) {
 		fprintf(stderr, "Switch to Local Control First!\n");
-		unlock();
+		unlock(&state.mutex);
 
 		return;
 	}
@@ -408,7 +368,7 @@ c_dec(bool positive)
 		rc = stepper_stop(STEPPER_AXIS_DEC);
 
 		if (rc) {
-			unlock();
+			unlock(&state.mutex);
 			fprintf(stderr,
 				"%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 		}
@@ -417,7 +377,7 @@ c_dec(bool positive)
 			rc = stepper_start(STEPPER_AXIS_DEC, state.dec_rate, 0);
 
 			if (rc) {
-				unlock();
+				unlock(&state.mutex);
 				fprintf(stderr,
 					"%s:%d - rc=%d\n",
 					__FILE__, __LINE__, rc);
@@ -425,7 +385,7 @@ c_dec(bool positive)
 		}
 	}
 
-	unlock();
+	unlock(&state.mutex);
 
 	return;
 }

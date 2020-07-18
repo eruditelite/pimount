@@ -61,4 +61,15 @@ struct pimount_state {
 
 extern struct pimount_state state;
 
+/*
+  (Un)Locking
+
+  If acquiring or releasing a lock every fails, die horribly.
+*/
+
+void _lock(pthread_mutex_t *mutex, const char *file, int line);
+#define lock(mutex) _lock(mutex, __FILE__, __LINE__);
+void _unlock(pthread_mutex_t *mutex, const char *file, int line);
+#define unlock(mutex) _unlock(mutex, __FILE__, __LINE__);
+
 #endif	/* __PIMOUNT__H */

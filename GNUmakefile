@@ -9,8 +9,11 @@ cscope:
 	ls *.c *.h >cscope.files
 	cscope -b
 
-pimount: main.c a4988.o pins.o fan.o server.o timespec.o stepper.o oled.o stats.o
+pimount: main.c a4988.o pins.o fan.o server.o timespec.o stepper.o oled.o stats.o pimount.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
+
+pimount.o: pimount.c pimount.h
+	gcc $(CFLAGS) -c -o $@ $<
 
 a4988.o: a4988.c a4988.h timespec.h
 	gcc $(CFLAGS) -c -o $@ $<

@@ -30,13 +30,13 @@ output: output.o a4988.o pins.o timespec.o
 output.o: output.c
 	gcc $(CFLAGS) -c -o $@ $<
 
-threads: threads.o stepper.o a4988.o pins.o timespec.o
+threads: threads.o stepper.o a4988.o pins.o timespec.o pimount.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 threads.o: threads.c
 	gcc $(CFLAGS) -c -o $@ $<
 
-rate: rate.o a4988.o pins.o timespec.o stepper.o
+rate: rate.o a4988.o pins.o timespec.o stepper.o pimount.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 rate.o: rate.c
@@ -46,6 +46,9 @@ client: client.o
 	gcc $(CFLAGS) -o $@ $^
 
 client.o: client.c
+	gcc $(CFLAGS) -c -o $@ $<
+
+pimount.o: ../pimount.c ../pimount.h
 	gcc $(CFLAGS) -c -o $@ $<
 
 stats.o: ../stats.c ../stats.h

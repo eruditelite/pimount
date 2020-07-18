@@ -72,46 +72,6 @@ static struct stepper global = {
 	.initialized = false
 };
 
-/* If a Lock Fails, Die Horribly */
-
-static inline void
-_lock(const char *file, int line)
-{
-	int rc;
-
-	rc = pthread_mutex_lock(&global.mutex);
-
-	if (rc) {
-		fprintf(stderr,
-			"%s:%d - pthread_mutex_lock() failed: %s\n",
-			file, line, strerror(rc));
-		exit(EXIT_FAILURE);
-	}
-
-	return;
-}
-
-#define lock() _lock(__FILE__, __LINE__);
-
-static inline void
-_unlock(const char *file, int line)
-{
-	int rc;
-
-	rc = pthread_mutex_unlock(&global.mutex);
-
-	if (rc) {
-		fprintf(stderr,
-			"%s:%d - pthread_mutex_unlock() failed: %s\n",
-			file, line, strerror(rc));
-		exit(EXIT_FAILURE);
-	}
-
-	return;
-}
-
-#define unlock() _unlock(__FILE__, __LINE__);
-
 /* How close is the same? */
 #define SAME_DOUBLE 0.1
 
@@ -559,7 +519,7 @@ stepper_initialize(void)
 {
 	/* Lock */
 
-	lock();
+	lock(&global.mutex);
 
 	if (true == global.initialized) {
 		fprintf(stderr,
@@ -573,7 +533,7 @@ stepper_initialize(void)
 	*/
 
 	if (init_state(STEPPER_AXIS_RA, &global.ra_parameters, "pimount.ra")) {
-		unlock();
+		unlock(&global.mutex);
 		fprintf(stderr, "%s:%d - init_state() failed!\n",
 			__FILE__, __LINE__);
 
@@ -581,7 +541,7 @@ stepper_initialize(void)
 	}
 
 	if (init_state(STEPPER_AXIS_DEC, &global.dec_parameters, "pimount.dec")) {
-		unlock();
+		unlock(&global.mutex);
 		fprintf(stderr, "%s:%d - init_state() failed!\n",
 			__FILE__, __LINE__);
 
@@ -591,7 +551,7 @@ stepper_initialize(void)
 	/* Update Globals and Unlock */
 
 	global.initialized = true;
-	unlock();
+	unlock(&global.mutex);
 
 	/* Report the Results */
 
@@ -610,7 +570,7 @@ stepper_finalize(void)
 {
 	/* Lock	*/
 
-	lock();
+	lock(&global.mutex);
 
 	/*
 	  The Main Part
@@ -623,7 +583,7 @@ stepper_finalize(void)
 		return;
 	}
 
-	unlock();
+	unlock(&global.mutex);
 
 	stepper_stop(STEPPER_AXIS_RA);
 	a4988_finalize(&global.ra_parameters.a4988.driver);
@@ -631,7 +591,7 @@ stepper_finalize(void)
 	stepper_stop(STEPPER_AXIS_DEC);
 	a4988_finalize(&global.dec_parameters.a4988.driver);
 
-	lock();
+	lock(&global.mutex);
 
 	/* Update Globals */
 
@@ -644,7 +604,7 @@ stepper_finalize(void)
 
 	/* Unlock */
 
-	unlock();
+	unlock(&global.mutex);
 
 	/* Report the Results */
 
@@ -690,7 +650,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 
 	/* Lock */
 
-	lock();
+	lock(&global.mutex);
 
 	/* Initialize Locals and Check State */
 
@@ -700,7 +660,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 		if (STEPPER_STATE_OFF != sp->state) {
 			fprintf(stderr, "%s:%d - RA is in use!\n",
 				__FILE__, __LINE__);
-			unlock();
+			unlock(&global.mutex);
 
 			return -1;
 		}
@@ -712,7 +672,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 		if (STEPPER_STATE_OFF != sp->state) {
 			fprintf(stderr, "%s:%d - DEC is in use!\n",
 				__FILE__, __LINE__);
-			unlock();
+			unlock(&global.mutex);
 
 			return -1;
 		}
@@ -725,7 +685,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 	if (rc) {
 		fprintf(stderr, "%s:%d - pthread_mutex_lock() failed: %s\n",
 			__FILE__, __LINE__, strerror(rc));
-		unlock();
+		unlock(&global.mutex);
 
 		return -1;
 	}
@@ -741,7 +701,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 		fprintf(stderr,	"%s:%d - ra_update_from_rate() failed!\n",
 			__FILE__, __LINE__);
 		pthread_mutex_unlock(&sp->mutex);
-		unlock();
+		unlock(&global.mutex);
 
 		return -1;
 	}
@@ -755,7 +715,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 		fprintf(stderr, "%s:%d - pthread_create() failed: %s\n",
 			__FILE__, __LINE__, strerror(rc));
 		pthread_mutex_unlock(&sp->mutex);
-		unlock();
+		unlock(&global.mutex);
 
 		return -1;
 	}
@@ -768,7 +728,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 		pthread_cancel(*thread);
 		pthread_join(*thread, NULL);
 		pthread_mutex_unlock(&sp->mutex);
-		unlock();
+		unlock(&global.mutex);
 
 		return -1;
 	}
@@ -777,7 +737,7 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 
 	/* Release the Globals Lock */
 
-	unlock();
+	unlock(&global.mutex);
 
 	/*
 	  Report the Results
@@ -809,7 +769,7 @@ stepper_stop(enum stepper_axis axis)
 	  Get the Globals Lock
 	*/
 
-	lock();
+	lock(&global.mutex);
 
 	if (STEPPER_AXIS_RA == axis) {
 		thread = &global.ra_thread;
@@ -832,7 +792,7 @@ stepper_stop(enum stepper_axis axis)
 	  Release the Globals Lock
 	*/
 
-	unlock();
+	unlock(&global.mutex);
 
 	return 0;
 }
@@ -854,7 +814,7 @@ stepper_get_status(enum stepper_axis axis,
 		return -1;
 	}
 
-	lock();
+	lock(&global.mutex);
 
 	if (STEPPER_AXIS_RA == axis)
 		sp = &global.ra_parameters;
@@ -862,7 +822,7 @@ stepper_get_status(enum stepper_axis axis,
 		sp = &global.dec_parameters;
 
 	if (STEPPER_STATE_INVALID == sp->state) {
-		unlock();
+		unlock(&global.mutex);
 		fprintf(stderr, "Invalid State!\n");
 
 		return -1;
@@ -881,7 +841,7 @@ stepper_get_status(enum stepper_axis axis,
 	if (NULL != remaining)
 		*remaining = sp->remaining;
 
-	unlock();
+	unlock(&global.mutex);
 
 	return 0;
 }
