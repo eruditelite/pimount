@@ -21,6 +21,7 @@
 
 #include "../oled.h"
 #include "../stats.h"
+#include "../pimount.h"
 
 char *cmdErrStr(int); /* For some reason, pigpio doesn't export this! */
 
@@ -154,13 +155,66 @@ main(int argc, char *argv[])
 	  Do Something
 	*/
 
+	/* Clear the screen, and print the labels. */
 	oled_clear(i2c_handle);
+	oled_print(i2c_handle, 0, 0, OLED_FONT_MEDIUM, "PiMount");
+	oled_print(i2c_handle, 0, 2, OLED_FONT_MEDIUM, "T/L");
+	oled_print(i2c_handle, 0, 4, OLED_FONT_MEDIUM, "R/A");
+	oled_print(i2c_handle, 0, 6, OLED_FONT_MEDIUM, "DEC");
 	sleep(1);
 
 	for (;;) {
 		int temp;
 		long load;
+		struct pimount_state state_copy;
 		char buffer[80];
+		int flen;
+
+		/* Clear the value areas (after the labels above). */
+		oled_fill(i2c_handle, false, 3, 2, 15, 2);
+		oled_fill(i2c_handle, false, 3, 4, 15, 6);
+
+		/* Update State */
+
+		lock(&state.mutex);
+		state_copy.control = state.control;
+		state_copy.ra_rate = -60.0; /*state.ra_rate;*/
+  		state_copy.dec_rate = 33.2; /*state.dec_rate;*/
+		unlock(&state.mutex);
+
+		/* Update 'control' */
+
+		flen = 15 - 7;	/* Available Space */
+
+		switch (state_copy.control) {
+		case PIMOUNT_CONTROL_OFF:
+			snprintf(buffer, flen, "Parked");
+			break;
+		case PIMOUNT_CONTROL_LOCAL:
+			snprintf(buffer, flen, "Local");
+			break;
+		case PIMOUNT_CONTROL_REMOTE:
+			snprintf(buffer, flen, "Remote");
+			break;
+		default:
+			break;
+		}
+
+		oled_fill(i2c_handle, false, 7, 0, 15, 0);
+		oled_print(i2c_handle, 15 - strlen(buffer), 0, OLED_FONT_MEDIUM,
+			   buffer);
+
+		flen = 15 - 3;	/* Available space for ra/dec rates. */
+		snprintf(buffer, flen, "%.2f", state_copy.ra_rate);
+		oled_fill(i2c_handle, false, 3, 4, 15, 4);
+		oled_print(i2c_handle, 15 - strlen(buffer), 4, OLED_FONT_MEDIUM,
+			   buffer);
+		snprintf(buffer, flen, "%.2f", state_copy.dec_rate);
+		oled_fill(i2c_handle, false, 3, 6, 15, 6);
+		oled_print(i2c_handle, 15 - strlen(buffer), 6, OLED_FONT_MEDIUM,
+			   buffer);
+
+		/* Update Temperature and Load */
 
 		load = get_load();
 		temp = get_temp();
@@ -170,11 +224,14 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		oled_clear(i2c_handle);
-		oled_print(i2c_handle, 0, 0, OLED_FONT_MEDIUM,
-			   "PiMount   Parked");
-		sprintf(buffer, "T/L %dC/%ld%%", temp, load);
-		oled_print(i2c_handle, 0, 2, OLED_FONT_MEDIUM, buffer);
+		flen = 15 - 3;	/* Available space for T/L. */
+		snprintf(buffer, flen, "%dC/%ld%%", temp, load);
+		oled_fill(i2c_handle, false, 3, 2, 15, 2);
+		oled_print(i2c_handle, 15 - strlen(buffer), 2, OLED_FONT_MEDIUM,
+			   buffer);
+
+		/* Sleep for a Bit */
+
 		sleep(5);
 	}
 

@@ -13,6 +13,17 @@
 #include "pimount.h"
 
 /*
+  state is used for local and remote control.
+*/
+
+struct pimount_state state = {
+	.mutex = PTHREAD_MUTEX_INITIALIZER,
+	.control = PIMOUNT_CONTROL_OFF,
+	.ra_rate = 0.0,
+	.dec_rate = 0.0
+};
+
+/*
   ------------------------------------------------------------------------------
   _lock
 */

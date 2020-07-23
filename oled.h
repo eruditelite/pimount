@@ -67,7 +67,7 @@ int oled_clear(int handle);
           x can be 0...20 (128 / 6 = 21.3, so 21) and
 	  y can be 0...7 (64 / 8 = 8)
   For OLED_FONT_MEDIUM (8x8)...
-          x can be 0...16 (128 / 8 = 16) and
+          x can be 0...15 (128 / 8 = 16) and
 	  y can be 0...7 (64 / 8 = 8)
   For OLED_FONT_LARGE (16x24)...
           x can be 0...7 (128 / 16 = 8) and

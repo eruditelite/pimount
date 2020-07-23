@@ -6,7 +6,7 @@ include ../flags.mk
 
 all: fan input output threads rate client status
 
-status: status.o oled.o stats.o
+status: status.o oled.o stats.o pimount.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
 
 status.o: status.c
