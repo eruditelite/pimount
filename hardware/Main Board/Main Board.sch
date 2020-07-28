@@ -589,6 +589,7 @@ F 0 "R13" V 9243 1800 50  0000 C CNN
 F 1 "1K" V 9334 1800 50  0000 C CNN
 F 2 "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P1.90mm_Vertical" V 9380 1800 50  0001 C CNN
 F 3 "~" H 9450 1800 50  0001 C CNN
+F 4 "1/8" V 9450 1800 50  0001 C CNN "Wattage"
 	1    9450 1800
 	0    1    1    0   
 $EndComp
