@@ -24,8 +24,8 @@
 #define DEC_PIN_DIRECTION 27
 #define DEC_PIN_STEP 17
 #define DEC_PIN_SLEEP 4
-#define DEC_PIN_MS2 3
-#define DEC_PIN_MS1 2
+#define DEC_PIN_MS2 22
+#define DEC_PIN_MS1 23
 
 enum pimount_control {
 	PIMOUNT_CONTROL_OFF,

@@ -35,6 +35,7 @@
 #include "pins.h"
 #include "timespec.h"
 #include "stepper.h"
+#include "stats.h"
 
 char *cmdErrStr(int);
 
@@ -50,6 +51,7 @@ static pthread_t server_thread;
 static void
 handler(__attribute__((unused)) int signal)
 {
+	stats_finalize();
 	stepper_finalize();
 	pthread_cancel(server_thread);
 	pthread_join(server_thread, NULL);
@@ -405,6 +407,7 @@ controller(void *input)
 	for (;;) {
 		ssize_t bytes;
 		struct js_event event;
+		static bool active = false;
 
 		bytes = read(controller_input->joystick_fd,
 			     &event, sizeof(event));
@@ -413,6 +416,13 @@ controller(void *input)
 			/* Controller Unplugged... Or Some Such. */
 			fprintf(stderr, "Controller Disappeared!\n");
 			pthread_exit(NULL);
+		}
+
+		if (4 == event.number || 5 == event.number) {
+			if (1 == event.value)
+				active = true;
+			else
+				active = false;
 		}
 
 		switch (event.type) {
@@ -440,6 +450,9 @@ controller(void *input)
 		case JS_EVENT_AXIS:
 			/* Local search. */
 			if (0 != (event.number / 2))
+				break;
+
+			if (!active)
 				break;
 
 			if (0 == event.number % 2) {
@@ -597,6 +610,18 @@ main(int argc, char *argv[])
 		fprintf(stderr, "pthread_setname_np() failed: %d\n", rc);
 
 	/*
+	  Start 'stats'
+	*/
+
+	rc = stats_initialize();
+
+	if (rc) {
+		fprintf(stderr, "stats_initialize() failed: %d\n", rc);
+
+		return EXIT_FAILURE;
+	}
+
+	/*
 	  Pause...
 	*/
 
@@ -606,6 +631,7 @@ main(int argc, char *argv[])
 	  Join all Threads
 	*/
 
+	stats_finalize();
 	stepper_finalize();
 	pthread_join(server_thread, NULL);
 	pthread_join(controller_thread, NULL);

@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 	i2c_handle = i2cOpen(1, 0x3c, 0);
 
 	if (0 > i2c_handle) {
-		fprintf(stderr, "i2cOpen() failed: %s\n", cmdErrStr(rc));
+		fprintf(stderr, "i2cOpen() failed: %s\n", cmdErrStr(i2c_handle));
 		gpioTerminate();
 
 		return EXIT_FAILURE;
@@ -158,10 +158,10 @@ main(int argc, char *argv[])
 	/* Clear the screen, and print the labels. */
 	oled_clear(i2c_handle);
 	oled_print(i2c_handle, 0, 0, OLED_FONT_MEDIUM, "PiMount");
-	oled_print(i2c_handle, 0, 2, OLED_FONT_MEDIUM, "T/L");
+	oled_print(i2c_handle, 0, 2, OLED_FONT_MEDIUM, "T/LA");
 	oled_print(i2c_handle, 0, 4, OLED_FONT_MEDIUM, "R/A");
 	oled_print(i2c_handle, 0, 6, OLED_FONT_MEDIUM, "DEC");
-	sleep(1);
+	sleep(10);
 
 	for (;;) {
 		int temp;
@@ -170,16 +170,12 @@ main(int argc, char *argv[])
 		char buffer[80];
 		int flen;
 
-		/* Clear the value areas (after the labels above). */
-		oled_fill(i2c_handle, false, 3, 2, 15, 2);
-		oled_fill(i2c_handle, false, 3, 4, 15, 6);
-
 		/* Update State */
 
 		lock(&state.mutex);
 		state_copy.control = state.control;
-		state_copy.ra_rate = -60.0; /*state.ra_rate;*/
-  		state_copy.dec_rate = 33.2; /*state.dec_rate;*/
+		state_copy.ra_rate = state.ra_rate;
+  		state_copy.dec_rate = state.dec_rate;
 		unlock(&state.mutex);
 
 		/* Update 'control' */
