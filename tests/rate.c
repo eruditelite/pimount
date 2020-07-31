@@ -38,7 +38,7 @@ usage(int exit_code)
 {
 	printf("rate \n"
 	       "--axis|-a, Axis to driver, ra|dec\n"
-	       "--duration|-u, Run time in milli seconds (0 means forever).\n"
+	       "--duration|-d, Run time in milli seconds (0 means forever).\n"
 	       "--rate|-r, Rate in arc seconds per second.\n");
 
 	exit(exit_code);
@@ -77,7 +77,7 @@ main(int argc, char *argv[])
 	static struct option long_options[] = {
 		{"help",      no_argument,       0,  'h' },
 		{"axis",      required_argument, 0,  'a' },
-		{"duration",  required_argument, 0,  'u' },
+		{"duration",  required_argument, 0,  'd' },
 		{"rate",      required_argument, 0,  'r' },
 		{0, 0, 0, 0}
 	};
