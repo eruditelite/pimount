@@ -101,25 +101,115 @@ controller_cleanup(void *input)
 }
 
 static void
+c_stop(void)
+{
+	int rc;
+
+	lock(&state.mutex);
+
+	state.ra_rate = 0.0;
+	state.dec_rate = 0.0;
+	state.control = PIMOUNT_CONTROL_OFF;
+	
+	rc = stepper_stop(STEPPER_AXIS_DEC);
+
+	if (rc) {
+		unlock(&state.mutex);
+		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
+	}
+
+	rc = stepper_stop(STEPPER_AXIS_RA);
+
+	if (rc) {
+		unlock(&state.mutex);
+		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
+	}
+
+	unlock(&state.mutex);
+	printf("=> Parked\n");
+
+	return;
+}
+
+static void
+c_remote(void)
+{
+	int rc;
+
+	lock(&state.mutex);
+
+	state.ra_rate = 0.0;
+	state.dec_rate = 0.0;
+	state.control = PIMOUNT_CONTROL_REMOTE;
+
+	rc = stepper_stop(STEPPER_AXIS_DEC);
+
+	if (rc) {
+		unlock(&state.mutex);
+		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
+	}
+
+	rc = stepper_stop(STEPPER_AXIS_RA);
+
+	if (rc) {
+		unlock(&state.mutex);
+		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
+	}
+
+	unlock(&state.mutex);
+	printf("=> Remote\n");
+
+	return;
+}
+
+static void
+c_local(void)
+{
+	int rc;
+
+	lock(&state.mutex);
+
+	state.ra_rate = 0.0;
+	state.dec_rate = 0.0;
+	state.control = PIMOUNT_CONTROL_LOCAL;
+
+	rc = stepper_stop(STEPPER_AXIS_DEC);
+
+	if (rc) {
+		unlock(&state.mutex);
+		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
+	}
+
+	rc = stepper_stop(STEPPER_AXIS_RA);
+
+	if (rc) {
+		unlock(&state.mutex);
+		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
+	}
+
+	unlock(&state.mutex);
+	printf("=> Local\n");
+
+	return;
+}
+
+static void
 c_track(void)
 {
 	int rc;
 
 	lock(&state.mutex);
 
-	if (PIMOUNT_CONTROL_LOCAL == state.control &&
-	    15.0 == state.ra_rate &&
-	    0.0 == state.dec_rate) {
+	if (PIMOUNT_CONTROL_LOCAL != state.control) {
+		fprintf(stderr, "%s:%d - Switch to Local Control First\n",
+			__FILE__, __LINE__);
 		unlock(&state.mutex);
 
 		return;
 	}
 
-	printf("Switching to Local and Tracking!\n");
-
 	state.dec_rate = 0.0;
 	state.ra_rate = 15.0;
-	state.control = PIMOUNT_CONTROL_LOCAL;
 
 	rc = stepper_stop(STEPPER_AXIS_DEC);
 
@@ -143,102 +233,7 @@ c_track(void)
 	}
 
 	unlock(&state.mutex);
-
-	return;
-}
-
-static void
-c_stop(void)
-{
-	int rc;
-
-	lock(&state.mutex);
-
-	if (PIMOUNT_CONTROL_OFF == state.control &&
-	    0.0 == state.ra_rate &&
-	    0.0 == state.dec_rate) {
-		unlock(&state.mutex);
-
-		return;
-	}
-
-	printf("Stopping Everything!\n");
-
-	state.ra_rate = 0.0;
-	state.dec_rate = 0.0;
-	state.control = PIMOUNT_CONTROL_OFF;
-	
-	rc = stepper_stop(STEPPER_AXIS_DEC);
-
-	if (rc) {
-		unlock(&state.mutex);
-		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
-	}
-
-	rc = stepper_stop(STEPPER_AXIS_RA);
-
-	if (rc) {
-		unlock(&state.mutex);
-		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
-	}
-
-	unlock(&state.mutex);
-
-	return;
-}
-
-static void
-c_remote(void)
-{
-	int rc;
-
-	lock(&state.mutex);
-
-	if (PIMOUNT_CONTROL_REMOTE == state.control &&
-	    0.0 == state.ra_rate &&
-	    0.0 == state.dec_rate) {
-		unlock(&state.mutex);
-
-		return;
-	}
-
-	printf("Switching to Remote and Stopping!\n");
-
-	state.ra_rate = 0.0;
-	state.dec_rate = 0.0;
-	state.control = PIMOUNT_CONTROL_REMOTE;
-
-	rc = stepper_stop(STEPPER_AXIS_DEC);
-
-	if (rc) {
-		unlock(&state.mutex);
-		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
-	}
-
-	rc = stepper_stop(STEPPER_AXIS_RA);
-
-	if (rc) {
-		unlock(&state.mutex);
-		fprintf(stderr, "%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
-	}
-
-	unlock(&state.mutex);
-
-	return;
-}
-
-static void
-c_status(void)
-{
-	lock(&state.mutex);
-
-	printf("State: %s\n"
-	       "ra_rate: %.2f\n"
-	       "dec_rate: %.2f\n",
-	       pimount_control_names(state.control),
-	       state.ra_rate, state.dec_rate);
-
-	unlock(&state.mutex);
+	printf("=> Tracking\n");
 
 	return;
 }
@@ -368,7 +363,7 @@ c_dec(bool positive)
 				"%s:%d - rc=%d\n", __FILE__, __LINE__, rc);
 		}
 
-		if (0.0 != state.ra_rate) {
+		if (0.0 != state.dec_rate) {
 			rc = stepper_start(STEPPER_AXIS_DEC, state.dec_rate, 0);
 
 			if (rc) {
@@ -407,7 +402,6 @@ controller(void *input)
 	for (;;) {
 		ssize_t bytes;
 		struct js_event event;
-		static bool active = false;
 
 		bytes = read(controller_input->joystick_fd,
 			     &event, sizeof(event));
@@ -418,28 +412,22 @@ controller(void *input)
 			pthread_exit(NULL);
 		}
 
-		if (4 == event.number || 5 == event.number) {
-			if (1 == event.value)
-				active = true;
-			else
-				active = false;
-		}
-
 		switch (event.type) {
 		case JS_EVENT_BUTTON:
 			if (0 == event.value) { /* Button pressed. */
 				switch (event.number) {
-				case 0:
+				case BUTTON_RED_A:
 					c_stop();
 					break;
-				case 1:
+				case BUTTON_YEL_B:
+					c_local();
 					c_track();
 					break;
-				case 2:
+				case BUTTON_BLU_X:
 					c_remote();
 					break;
-				case 3:
-					c_status();
+				case BUTTON_GRN_Y:
+					c_local();
 					break;
 				default:
 					/* Ignore other buttons. */
@@ -450,9 +438,6 @@ controller(void *input)
 		case JS_EVENT_AXIS:
 			/* Local search. */
 			if (0 != (event.number / 2))
-				break;
-
-			if (!active)
 				break;
 
 			if (0 == event.number % 2) {

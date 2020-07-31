@@ -72,6 +72,12 @@ i2c-0.  After that, i2c-1 is used (pins bcm2 and bcm3 instead of bcm0
 and bcm1).  Trying to use i2c-0 is fraught with difficulties.  Using
 i2c-1.
 
+## Local Control ##
+
+Local control uses a USB game controller (SNES style).  Don't use
+iBuffalo, as there are phantom button presses!  Currently using
+innext.
+
 ## Web User Interface ##
 
 ### Why ###

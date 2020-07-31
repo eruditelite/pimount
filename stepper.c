@@ -146,62 +146,98 @@ display_trace(void)
   ra_update_from_rate
 
   Set the A4988 values in the struction based on rate and direction.
+
+  A pulse width of 500 us is used in all cases, with the resolution
+  and delay between pulses varying to get to the requested rate (in
+  arc-seconds per second).  The minimum delay is 2000 us (see the
+  a4988 driver).
+
+  For the RA axis, maximum rate the original controller allows is 8x
+  the tracking rate, or (15 * 8) arc-seconds per second -- 120
+  arc-seconds per second.
+
+  Based on the measurements below, the formula for rate and delay is
+  as follows.
+
+       rate = ([resolution] * 1,440,000) / delay
+
+       Where resolution is 1/8, 1/4, 1/2, or 1 and delay is in us.
+       The rate is in arc-seconds per second.
+
+  Measurements were made using the setting rings.
+
+  Resolution would be 1/8 up to 60 as/s (arc seconds per second) with delays of
+
+       - 96000 us for 1.875 as/s
+       - 48000 us for 3.75 as/s
+       - 24000 us for 7.5 as/s
+       - 12000 us for 15 as/s
+       -  6000 us for 30 as/s
+       -  3000 us for 60 as/s
+
+  At 1/4,
+
+       - 12000 us for 30 as/s
+
+  At 1/2,
+
+       - 24000 us for 30 as/s
+
+  At full,
+
+       - 48000 us for 30 as/s
 */
 
 static int
 ra_update_from_rate(struct stepper_parameters *sp)
 {
-	printf("%s:%d - sp->rate=%.2f\n", __FILE__, __LINE__, sp->rate);
-
 	/*
-	  If the speed is 15 arcseconds per second, and the direction
-	  is West, track the Earth's speed.  This needs to be very
-	  precise!
-
-	  The width/delay were determined experimentally, as there's
-	  no way to open the RA gear box without breaking it... Adjust
-	  as needed!
+	  Use 500 us for width, and set the direction.
 	*/
 
-	if ((fabs(sp->rate - 15.0) < SAME_DOUBLE) &&
-	    (STEPPER_DIRECTION_POSITIVE == sp->direction)) {
-		sp->a4988.resolution = A4988_RES_EIGHTH;
+	sp->width = 500;
+
+	if (0.0 < sp->rate)
 		sp->a4988.direction = A4988_DIR_CW;
-		sp->width = 500;
-		sp->delay = 12000;
+	else
+		sp->a4988.direction = A4988_DIR_CCW;
+
+	/*
+	  Based on the above, use a resolution of 1/8 for rates from
+	  -30.0 to 30.0 as/s.
+	*/
+
+	if (30.0 >= fabs(sp->rate)) {
+		sp->a4988.resolution = A4988_RES_EIGHTH;
+		sp->delay = (1440000 / 8) / sp->rate;
 
 		return EXIT_SUCCESS;
 	}
 
 	/*
-	  15.0 through 60.0 arcsec/sec
+	  Between 30.0 and 60.0 (or -60.0 and -30.0), use 1/4.
+	*/
 
-	  Assume...
-	      - The delay between steps and arc seconds per second
-                changes lineraly.
-	      - Halving the delay will double the speed.
-	      - As the delay needs to be at least 2 ms (see
-                a4988_step() in a4988.c), use A4988_RES_EIGHTH up to
-                60 arc seconds per second (delay of 3 ms).
+	if (60.0 >= fabs(sp->rate)) {
+		sp->a4988.resolution = A4988_RES_QUARTER;
+		sp->delay = (1440000 / 4) / sp->rate;
 
-	  So, y=60.0 means x=3000 and y=15.0 means x=12000.
-	          => slope is -0.005
-		  => y = -0.005 x + 75
-		  => (75 - y) / 0.005 = x
-
-	  Pure conjecture at this point...
-	 */
-
-	if (60.0 >= fabs(sp->rate) && 15.0 <= fabs(sp->rate)) {
-		double x;
-		double y;
-
-		y = fabs(sp->rate);
-		x = (75.0 - y) / 0.005;
-		(void)modf(x, &x);
-		sp->delay = (int)x;
-		printf("sp->rate=%.2f sp->delay=%ld\n", sp->rate, sp->delay);
+		return EXIT_SUCCESS;
 	}
+
+	/*
+	  Between 60.0 and 120.0 (or -120.0 and -60.0), use 1.
+	*/
+
+	if (120.0 >= fabs(sp->rate)) {
+		sp->a4988.resolution = A4988_RES_FULL;
+		sp->delay = 1440000 / sp->rate;
+
+		return EXIT_SUCCESS;
+	}
+
+	fprintf(stderr,	"%s:%d - Requested rate is out of range: %.2f\n",
+		__FILE__, __LINE__, sp->rate);
 
 	return EXIT_FAILURE;
 }
@@ -211,12 +247,24 @@ ra_update_from_rate(struct stepper_parameters *sp)
   dec_update_from_rate
 
   Set the A4988 values in the struction based on rate and direction.
+
+  As above, use 500 us as the pulse width and adjust resolution and
+  delay to control the rate.
+
+  Note that 15 asec/sec is .25 degrees per minute
+
+  Using the setting circle does not allow for much precision, but it
+  seems like the end result is the same as in the RA case -- even
+  though the gearing looks quite different (there is a gear box on the
+  RA motor, but not on the DEC motor).
+
+  For now, just call ra_update_from_rate() and hope for the best.
 */
 
 static int
 dec_update_from_rate(struct stepper_parameters *sp)
 {
-	return EXIT_FAILURE;
+	return ra_update_from_rate(sp);
 }
 
 /*
@@ -623,9 +671,18 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 {
 	int rc;
 	struct stepper_parameters *sp;
-	pthread_t *thread;
 	const char *names[2] = { "pimount.ra", "pimount.dec" };
 	enum stepper_direction direction;
+	pthread_t *thread;
+
+	/* Verify that the Axis is Valid */
+
+	if ((STEPPER_AXIS_RA != axis) && (STEPPER_AXIS_DEC != axis)) {
+		fprintf(stderr, "%s:%d - Invalid Axis: %s\n",
+			__FILE__, __LINE__, stepper_axis_names(axis));
+
+		return -1;
+	}
 
 	/* If the rate is exactly 0.0, stop. */
 
@@ -695,15 +752,24 @@ stepper_start(enum stepper_axis axis, double rate, long duration)
 	sp->direction = direction;
 	sp->duration = duration;
 
-	printf("%s:%d - \n", __FILE__, __LINE__);
+	if (STEPPER_AXIS_RA == axis) {
+		if (ra_update_from_rate(sp)) {
+			fprintf(stderr,	"%s:%d - ra_update_from_rate() failed!\n",
+				__FILE__, __LINE__);
+			pthread_mutex_unlock(&sp->mutex);
+			unlock(&global.mutex);
 
-	if (ra_update_from_rate(sp)) {
-		fprintf(stderr,	"%s:%d - ra_update_from_rate() failed!\n",
-			__FILE__, __LINE__);
-		pthread_mutex_unlock(&sp->mutex);
-		unlock(&global.mutex);
+			return -1;
+		}
+	} else {
+		if (dec_update_from_rate(sp)) {
+			fprintf(stderr,	"%s:%d - dec_update_from_rate() failed!\n",
+				__FILE__, __LINE__);
+			pthread_mutex_unlock(&sp->mutex);
+			unlock(&global.mutex);
 
-		return -1;
+			return -1;
+		}
 	}
 
 	sp->state = STEPPER_STATE_ON;
