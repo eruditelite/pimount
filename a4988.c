@@ -158,7 +158,7 @@ a4988_step(struct a4988 *driver, unsigned width)
 	static unsigned offset = 0;
 
 	/*
-	  If called with 2 ms of the last pulse, the motor just
+	  If called within 2 ms of the last pulse, the motor just
 	  "rattles".  So, make sure it's been at least 2 ms since the
 	  last pulse.
 	*/
