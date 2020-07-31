@@ -9,6 +9,17 @@
 
 #define JOYSTICK "/dev/input/js0"
 
+/* As button numbering changes... */
+
+#define BUTTON_RED_A 1
+#define BUTTON_YEL_B 2
+#define BUTTON_BLU_X 0
+#define BUTTON_GRN_Y 3
+#define BUTTON_LEFT  4
+#define BUTTON_RIGHT 5
+#define BUTTON_SEL   8
+#define BUTTON_START 9
+
 /*
   Choose a pin that supports PWM, which for Raspberry Pi means 18.
 */

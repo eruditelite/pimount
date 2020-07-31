@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <linux/joystick.h>
 
+#include "../pimount.h"
+
 static int js_fd = -1;
 static char *js_name = "/dev/input/js0";
 
@@ -136,23 +138,17 @@ handle_event(struct js_event *event)
 		/*
 		  Only handle button press events, and treat axis 0
 		  and 1 as buttons.
-
-		  This is based on using the iBuffalo Classic USB Gamepad.
 		*/
 
 		if (JS_EVENT_BUTTON == event->type && 1 == event->value) {
-			if (0 == event->number)
-				/* Button 0 Means STOP */
-				printf("Stop Everything\n");
-			else if (1 == event->number)
-				/* Button 1 Means Local Control and Track */
-				printf("Local Control and Track\n");
-			else if (2 == event->number)
-				/* Button 2 Means Remote Control and Stop */
-				printf("Remote Control and Stop\n");
-			else if (3 == event->number)
-				/* Button 3 Means Dump Status to Console */
-				printf("Dump Status\n");
+			if (BUTTON_RED_A == event->number)
+				printf("Park\n");
+			else if (BUTTON_YEL_B == event->number)
+				printf("Local and Tracking\n");
+			else if (BUTTON_GRN_Y == event->number)
+				printf("Local\n");
+			else if (BUTTON_BLU_X == event->number)
+				printf("Remote\n");
 		} else if (JS_EVENT_AXIS == event->type) {
 			int which;
 			int axis;
