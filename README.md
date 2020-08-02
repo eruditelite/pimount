@@ -139,3 +139,7 @@ files in INDI.
   * Not sure about the debug headers.  I didn't solder any on, but
     that pads are useful!
   * Default pin assignments are wrong.
+
+## Issues ##
+
+### USB Controller Only Works if Connected when the Program Starts ###
