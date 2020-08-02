@@ -106,6 +106,16 @@ files in INDI.
      one element, just creating a single element will NOT work
      (INumber ANewNumber[1], not INumber ANewNumber).
 
+## systemd ##
+
+As everyone uses it now...
+
+sudo cp pimount.service /lib/systemd/system
+sudo systemctl enable pimount
+
+Then, pimount will start at boot.  Just update /usr/local/bin/pimount
+and reboot to update pimount.
+
 ## Post Mortems ##
 
 ### release_1.3 ###

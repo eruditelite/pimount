@@ -1,0 +1,10 @@
+[Unit]
+Description=PiMount : Pi + Custom Hardware and Software Telescope Controller
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/pimount
+
+[Install]
+WantedBy=multi-user.target
