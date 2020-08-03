@@ -1,7 +1,19 @@
 # Common flags.
 include flags.mk
 
-all: pimount
+# Common patterns.
+include patterns.mk
+
+SRC = a4988.c fan.c main.c oled.c pimount.c pins.c server.c stats.c \
+	stepper.c timespec.c
+OBJ = $(SRC:.c=.o)
+DEP = $(SRC:.c=.d)
+
+.PHONY: all cscope clean
+
+.DEFAULT: all
+
+all: pimount tests indi
 	make -C tests all
 	make -C indi all
 
@@ -9,37 +21,13 @@ cscope:
 	ls *.c *.h >cscope.files
 	cscope -b
 
-pimount: main.c a4988.o pins.o fan.o server.o timespec.o stepper.o oled.o stats.o pimount.o
+pimount: main.o a4988.o pins.o fan.o server.o timespec.o stepper.o \
+	oled.o stats.o pimount.o
 	gcc $(CFLAGS) -o $@ $^ $(LIBS)
-
-pimount.o: pimount.c pimount.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-a4988.o: a4988.c a4988.h timespec.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-stats.o: stats.c stats.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-pins.o: pins.c pins.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-fan.o: fan.c fan.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-server.o: server.c server.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-timespec.o: timespec.c timespec.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-stepper.o: stepper.c stepper.h
-	gcc $(CFLAGS) -c -o $@ $<
-
-oled.o: oled.c oled.h
-	gcc $(CFLAGS) -c -o $@ $<
 
 clean:
 	make -C tests clean
 	make -C indi clean
-	rm -f *~ *.o cscope* pimount cscope.*
+	rm -f *~ *.o cscope* pimount cscope.* *.d
+
+-include $(DEP)
