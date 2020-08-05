@@ -57,6 +57,10 @@ Others have modified the system as well. See, for example,
 Set the voltage (potentiometer to ground) to 125 mV.  Motor voltage
 should be 10 V.
 
+## Setup ##
+
+
+
 ## Local OLED Display ##
 
 The plan is to use a white display with red film...
@@ -94,6 +98,21 @@ setup. That's the skeleton.
 The most straight-forward way to support guiding seems to be with an
 INDI driver.  Start with the 'drivers/telescope/telescope_simulator.*'
 files in INDI.
+
+### Install ###
+
+Use the latest version of the INDI library by installing in /usr/local
+as follows.
+
+git clone https://github.com/indilib/indi.git
+cd indi
+INDI_CLONE=$(pwd)
+<currently at 4543974f on master or v1.8.5>
+BUILD_DIRECTORY=<wherever you want to build>
+cd $BUILD_DIRECTORY
+cmake --DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Debug $INDI_CLONE
+make -j4
+sudo make install
 
 ### NOTES ###
 
