@@ -1,0 +1,11 @@
+[Unit]
+Description=INDI Driver for PiMount
+Requires=pimount.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=indiserver /usr/local/bin/pimount-indi
+
+[Install]
+WantedBy=multi-user.target
