@@ -9,13 +9,19 @@ SRC = a4988.c fan.c main.c oled.c pimount.c pins.c server.c stats.c \
 OBJ = $(SRC:.c=.o)
 DEP = $(SRC:.c=.d)
 
-.PHONY: all cscope clean
+.PHONY: all cscope clean install
 
 .DEFAULT: all
 
 all: pimount tests indi
 	make -C tests all
 	make -C indi all
+
+install: all
+	sudo cp pimount /usr/local/bin
+	sudo cp pimount.service /lib/systemd/system
+	sudo cp indi/pimount-indi /usr/local/bin
+	sudo cp indi/pimount-indi.service /lib/systemd/system
 
 cscope:
 	ls *.c *.h >cscope.files
