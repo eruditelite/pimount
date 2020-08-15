@@ -104,15 +104,19 @@ files in INDI.
 Use the latest version of the INDI library by installing in /usr/local
 as follows.
 
-git clone https://github.com/indilib/indi.git
-cd indi
-INDI_CLONE=$(pwd)
-<currently at 4543974f on master or v1.8.5>
-BUILD_DIRECTORY=<wherever you want to build>
-cd $BUILD_DIRECTORY
-cmake --DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Debug $INDI_CLONE
-make -j4
-sudo make install
+    sudo apt-get -y install libnova-dev libcfitsio-dev libusb-1.0-0-dev \
+    	zlib1g-dev libgsl-dev build-essential cmake git libjpeg-dev \
+    	libcurl4-gnutls-dev libtheora-dev libfftw3-dev
+    
+    git clone https://github.com/indilib/indi.git
+    cd indi
+    INDI_CLONE=$(pwd)
+    <currently at 4543974f on master or v1.8.5>
+    BUILD_DIRECTORY=<wherever you want to build>
+    cd $BUILD_DIRECTORY
+    cmake --DCMAKE_INSTALL_PREFIX=/usr $INDI_CLONE
+    make -j4
+    sudo make install
 
 ### NOTES ###
 
@@ -125,15 +129,29 @@ sudo make install
      one element, just creating a single element will NOT work
      (INumber ANewNumber[1], not INumber ANewNumber).
 
+## lin_guider ##
+
+wget https://sourceforge.net/projects/linguider/files/4.2.0/lin_guider-4.2.0.tar.bz2/download
+mv download lin_guider-4.2.0.tar.bz2
+tar xf lin_guider-4.2.0.tar.bz2
+cd lin_guider_pack/lin_guider
+sudo apt-get install libusb-1.0-0-dev libqt4-dev libftdi-dev fxload
+./configure
+make
+
+## ASI SDK ##
+
+sudo cp include/ASICamera2.h /usr/local/include
+sudo chmod 644 /usr/local/include/ASICamera2.h
+
 ## systemd ##
 
 As everyone uses it now...
 
-sudo cp pimount.service /lib/systemd/system
-sudo systemctl enable pimount
+make install
 
-Then, pimount will start at boot.  Just update /usr/local/bin/pimount
-and reboot to update pimount.
+Then, pimount and pimount-indi will start at boot.  Use 'systemctl
+...' to control pimount and pimount-indi as expected.
 
 ## Post Mortems ##
 
