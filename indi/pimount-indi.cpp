@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
-  pimount.h
+  pimount-indi.cpp
 
   INDI driver for 'pimount'.  This is based on the
   telescope_simulation driver in the indi tree.
 */
 
-#include "pimount.h"
+#include "pimount-indi.h"
 
 #include "indicom.h"
 
