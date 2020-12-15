@@ -18,10 +18,16 @@ all: pimount tests indi
 	make -C indi all
 
 install: all
+	sudo systemctl stop pimount-indi
+	sudo systemctl stop pimount
 	sudo cp pimount /usr/local/bin
 	sudo cp pimount.service /lib/systemd/system
+	sudo systemctl enable pimount
+	sudo systemctl start pimount
 	sudo cp indi/pimount-indi /usr/local/bin
 	sudo cp indi/pimount-indi.service /lib/systemd/system
+	sudo systemctl enable pimount-indi
+	sudo systemctl start pimount-indi
 
 cscope:
 	ls *.c *.h >cscope.files
