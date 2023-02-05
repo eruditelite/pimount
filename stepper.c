@@ -186,7 +186,15 @@ display_trace(void)
   At full,
 
        - 48000 us for 30 as/s
+
+  UPDATE
+
+  The originall 1440000 is a bit fast based on tracking during
+  observation.  To make adjustments easier, define THE_RA_NUMBER and
+  adjust from there...
 */
+
+#define THE_RA_NUMBER 1460000
 
 static int
 ra_update_from_rate(struct stepper_parameters *sp)
@@ -209,7 +217,7 @@ ra_update_from_rate(struct stepper_parameters *sp)
 
 	if (30.0 >= fabs(sp->rate)) {
 		sp->a4988.resolution = A4988_RES_EIGHTH;
-		sp->delay = (1440000 / 8) / sp->rate;
+		sp->delay = (THE_RA_NUMBER / 8) / sp->rate;
 
 		return EXIT_SUCCESS;
 	}
@@ -220,7 +228,7 @@ ra_update_from_rate(struct stepper_parameters *sp)
 
 	if (60.0 >= fabs(sp->rate)) {
 		sp->a4988.resolution = A4988_RES_QUARTER;
-		sp->delay = (1440000 / 4) / sp->rate;
+		sp->delay = (THE_RA_NUMBER / 4) / sp->rate;
 
 		return EXIT_SUCCESS;
 	}
@@ -231,7 +239,7 @@ ra_update_from_rate(struct stepper_parameters *sp)
 
 	if (120.0 >= fabs(sp->rate)) {
 		sp->a4988.resolution = A4988_RES_FULL;
-		sp->delay = 1440000 / sp->rate;
+		sp->delay = THE_RA_NUMBER / sp->rate;
 
 		return EXIT_SUCCESS;
 	}
@@ -258,13 +266,66 @@ ra_update_from_rate(struct stepper_parameters *sp)
   though the gearing looks quite different (there is a gear box on the
   RA motor, but not on the DEC motor).
 
-  For now, just call ra_update_from_rate() and hope for the best.
+  UPDATE
+
+  Not even close to RA... Use THE_DEC_NUMBER below to set the value.
+  Need to use observational measurements to find the number.
 */
+
+#define THE_DEC_NUMBER 2840000
 
 static int
 dec_update_from_rate(struct stepper_parameters *sp)
 {
-	return ra_update_from_rate(sp);
+	/*
+	  Use 500 us for width, and set the direction.
+	*/
+
+	sp->width = 500;
+
+	if (0.0 < sp->rate)
+		sp->a4988.direction = A4988_DIR_CW;
+	else
+		sp->a4988.direction = A4988_DIR_CCW;
+
+	/*
+	  Based on the above, use a resolution of 1/8 for rates from
+	  -30.0 to 30.0 as/s.
+	*/
+
+	if (30.0 >= fabs(sp->rate)) {
+		sp->a4988.resolution = A4988_RES_EIGHTH;
+		sp->delay = (THE_DEC_NUMBER / 8) / sp->rate;
+
+		return EXIT_SUCCESS;
+	}
+
+	/*
+	  Between 30.0 and 60.0 (or -60.0 and -30.0), use 1/4.
+	*/
+
+	if (60.0 >= fabs(sp->rate)) {
+		sp->a4988.resolution = A4988_RES_QUARTER;
+		sp->delay = (THE_DEC_NUMBER / 4) / sp->rate;
+
+		return EXIT_SUCCESS;
+	}
+
+	/*
+	  Between 60.0 and 120.0 (or -120.0 and -60.0), use 1.
+	*/
+
+	if (120.0 >= fabs(sp->rate)) {
+		sp->a4988.resolution = A4988_RES_FULL;
+		sp->delay = THE_DEC_NUMBER / sp->rate;
+
+		return EXIT_SUCCESS;
+	}
+
+	fprintf(stderr,	"%s:%d - Requested rate is out of range: %.2f\n",
+		__FILE__, __LINE__, sp->rate);
+
+	return EXIT_FAILURE;
 }
 
 /*
