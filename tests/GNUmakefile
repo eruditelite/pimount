@@ -39,6 +39,6 @@ client: client.o
 	gcc $(CFLAGS) -o $@ $^
 
 clean:
-	rm -f *~ *.o fan input output threads rate client *.log *.d
+	rm -f *~ *.o fan input output threads rate client status *.log *.d
 
 -include $(DEP)
